@@ -12,6 +12,7 @@ from app.ai.errors import (
     AiNotConfiguredError,
     AiOutputError,
     AiProviderError,
+    AiQuotaError,
     AiRateLimitError,
     AiServerError,
     AiTimeoutError,
@@ -399,7 +400,11 @@ def test_stream_yields_deltas_then_the_final_result() -> None:
     ("reply", "expected"),
     [
         (error_reply(429, "rate_limit_exceeded", "rate_limit_error"), AiRateLimitError),
-        (error_reply(429, "insufficient_quota", "insufficient_quota"), AiProviderError),
+        (error_reply(429, "insufficient_quota", "insufficient_quota"), AiQuotaError),
+        (
+            error_reply(429, "credit_balance_exhausted", "insufficient_quota"),
+            AiQuotaError,
+        ),
         (
             error_reply(401, "invalid_api_key", "invalid_request_error"),
             AiNotConfiguredError,

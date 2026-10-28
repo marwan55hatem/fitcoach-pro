@@ -20,6 +20,7 @@ from app.ai.errors import (
     AiNotConfiguredError,
     AiOutputError,
     AiProviderError,
+    AiQuotaError,
     AiRateLimitError,
     AiRefusalError,
     AiServerError,
@@ -228,11 +229,14 @@ def test_retries_give_up_after_the_limit(db: Session, error: type[AiError]) -> N
     assert usage_rows(db, user) == []  # nothing was spent
 
 
-def test_non_transient_errors_are_not_retried(db: Session) -> None:
+@pytest.mark.parametrize("error", [AiProviderError, AiQuotaError, AiNotConfiguredError])
+def test_non_transient_errors_are_not_retried(
+    db: Session, error: type[AiError]
+) -> None:
     user, fake, sleeps = make_user(db), FakeProvider(), []
     ai = make_client(db, fake, sleeps=sleeps)
-    fake.queue_error(AiProviderError())
-    with pytest.raises(AiProviderError):
+    fake.queue_error(error())
+    with pytest.raises(error):
         ai.chat(user_id=user.id, task=Task.MAIN, system="s", messages=ASK)
     assert len(fake.calls) == 1 and sleeps == []
 
@@ -455,6 +459,7 @@ def test_stream_checks_the_budget_before_starting(db: Session) -> None:
     ("error", "status", "code"),
     [
         (AiNotConfiguredError, 503, "ai_not_configured"),
+        (AiQuotaError, 503, "ai_unavailable"),
         (AiBudgetExceededError, 429, "ai_budget_exceeded"),
         (AiRefusalError, 422, "ai_refused"),
         (AiOutputError, 502, "ai_bad_output"),

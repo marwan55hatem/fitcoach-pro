@@ -15,6 +15,7 @@ import sys
 import openai
 from pydantic import BaseModel, Field
 
+from app.ai.errors import AiError, AiQuotaError
 from app.ai.models import DEFAULT_MODELS, estimate_cost
 from app.ai.providers.openai_provider import OpenAiProvider, build_client
 from app.ai.types import (
@@ -32,6 +33,20 @@ class Sum(BaseModel):
 
 
 def main() -> int:
+    try:
+        return _run()
+    except AiQuotaError:
+        print("\nYour OpenAI account has no credit left. Add credit at")
+        print(
+            "https://platform.openai.com/settings/organization/billing/ then run this again."
+        )
+        return 1
+    except AiError as exc:
+        print(f"\nThe provider call failed: {type(exc).__name__} ({exc.user_message})")
+        return 1
+
+
+def _run() -> int:
     settings = get_settings()
     models = {
         task: {

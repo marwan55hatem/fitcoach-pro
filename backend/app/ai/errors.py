@@ -20,6 +20,14 @@ class AiNotConfiguredError(AiError):
     user_message = "The AI features are not available right now."
 
 
+class AiQuotaError(AiError):
+    """The provider account is out of credit or quota. Retrying cannot help; an admin must act."""
+
+    code = "ai_unavailable"
+    http_status = 503
+    user_message = "The AI features are not available right now."
+
+
 class AiBudgetExceededError(AiError):
     code = "ai_budget_exceeded"
     http_status = 429

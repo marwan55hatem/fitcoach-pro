@@ -20,6 +20,7 @@ from app.ai.errors import (
     AiNotConfiguredError,
     AiOutputError,
     AiProviderError,
+    AiQuotaError,
     AiRateLimitError,
     AiServerError,
     AiTimeoutError,
@@ -39,6 +40,8 @@ from app.ai.types import (
     Usage,
     UserMessage,
 )
+
+_QUOTA_CODES = {"insufficient_quota", "credit_balance_exhausted"}
 
 
 def build_client(
@@ -200,8 +203,12 @@ class OpenAiProvider:
         if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
             return AiNotConfiguredError()
         if isinstance(exc, openai.RateLimitError):
-            if getattr(exc, "code", None) == "insufficient_quota":
-                return AiProviderError()  # billing problem, retrying will not help
+            # Out of credit is reported as a 429 too, but it is not a "slow down" error.
+            if (
+                getattr(exc, "type", None) == "insufficient_quota"
+                or getattr(exc, "code", None) in _QUOTA_CODES
+            ):
+                return AiQuotaError()
             return AiRateLimitError()
         if isinstance(exc, openai.APIStatusError):
             return AiServerError() if exc.status_code >= 500 else AiProviderError()
