@@ -34,6 +34,35 @@ class ActivityLevel(enum.StrEnum):
     VERY_ACTIVE = "very_active"
 
 
+class Equipment(enum.StrEnum):
+    """Canonical equipment vocabulary shared by onboarding and the exercise library."""
+
+    BODY_WEIGHT = "body_weight"
+    DUMBBELL = "dumbbell"
+    BARBELL = "barbell"
+    EZ_BAR = "ez_bar"
+    CABLE = "cable"
+    MACHINE = "machine"
+    KETTLEBELL = "kettlebell"
+    BANDS = "bands"
+    BENCH = "bench"
+    PULL_UP_BAR = "pull_up_bar"
+    OTHER = "other"
+
+
+class BodyArea(enum.StrEnum):
+    NECK = "neck"
+    SHOULDER = "shoulder"
+    ELBOW = "elbow"
+    WRIST_HAND = "wrist_hand"
+    UPPER_BACK = "upper_back"
+    LOWER_BACK = "lower_back"
+    HIP = "hip"
+    KNEE = "knee"
+    ANKLE_FOOT = "ankle_foot"
+    OTHER = "other"
+
+
 class Units(enum.StrEnum):
     METRIC = "metric"
     IMPERIAL = "imperial"

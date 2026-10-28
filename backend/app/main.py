@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import auth, consents, health, me
+from app.api import auth, consents, health, me, onboarding
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.rate_limit import limiter
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(consents.router)
     app.include_router(me.router)
+    app.include_router(onboarding.router)
     return app
 
 

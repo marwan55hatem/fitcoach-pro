@@ -12,6 +12,8 @@ from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models import User
 from app.models.enums import ConsentType
+from app.rules.screening import REASON_MESSAGES
+from app.services import onboarding
 from app.services.consents import has_consent
 
 DbSession = Annotated[Session, Depends(get_db)]
@@ -69,6 +71,52 @@ def require_consent(consent_type: ConsentType) -> Callable[..., User]:
         return user
 
     return dependency
+
+
+def require_plan_access(
+    user: Annotated[User, Depends(require_consent(ConsentType.HEALTH_DATA))],
+    db: DbSession,
+) -> User:
+    """403 unless the user may receive a training program / nutrition plan right now.
+
+    Evaluated live from profile, screening and weight on every request, so a changed
+    goal or weight, or a new screening, takes effect immediately.
+    """
+    access = onboarding.onboarding_state(db, user).access
+    if not access.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "plan_access_denied",
+                "reasons": [str(r) for r in access.blocked_reasons],
+                "message": " ".join(
+                    REASON_MESSAGES[str(r)] for r in access.blocked_reasons
+                ),
+            },
+        )
+    return user
+
+
+def require_diet_targets(
+    user: Annotated[User, Depends(require_plan_access)], db: DbSession
+) -> User:
+    """Like require_plan_access, and also 403 when numeric diet targets are withheld.
+
+    Used by calorie/macro endpoints: users flagged for disordered-eating risk may get a
+    training program but never numeric diet targets.
+    """
+    if not onboarding.onboarding_state(db, user).access.numeric_diet_targets:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "diet_targets_withheld",
+                "message": (
+                    "Numeric calorie and macro targets are not available for your profile. "
+                    "Please talk to a doctor, dietitian or qualified professional."
+                ),
+            },
+        )
+    return user
 
 
 ModelT = TypeVar("ModelT")

@@ -19,6 +19,15 @@ class Account:
         return {"Authorization": f"Bearer {self.access_token}"}
 
 
+def grant_consents(client: TestClient, account: Account, *types: str) -> None:
+    res = client.put(
+        "/consents",
+        headers=account.headers,
+        json={"consents": {t: True for t in types}},
+    )
+    assert res.status_code == 200, res.text
+
+
 def delete_me(
     client: TestClient, account: Account, password: str = PASSWORD
 ) -> Response:

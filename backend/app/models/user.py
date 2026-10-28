@@ -72,6 +72,8 @@ class Profile(OwnedBase, Base):
     )
     timezone: Mapped[str] = mapped_column(sa.String(64), server_default="Africa/Cairo")
     language: Mapped[str] = mapped_column(sa.String(8), server_default="en")
+    # Set when the user has answered the injuries step (an empty list is a valid answer).
+    limitations_reviewed_at: Mapped[dt.datetime | None]
     units: Mapped[Units] = mapped_column(
         enum_col(Units), server_default=Units.METRIC.value
     )
