@@ -11,7 +11,7 @@ Python 3.12, Node 20+, npm, Docker Desktop.
 ```powershell
 docker compose up -d
 ```
-- Postgres: `localhost:5432` (user/password/db: `fitcoach`)
+- Postgres: `localhost:5433` (user/password/db: `fitcoach`)
 - MinIO S3 API: `localhost:9000`, console: http://localhost:9001 (`minioadmin` / `minioadmin`, local dev only)
 - A one-shot `minio-init` service creates the **private** bucket `fitcoach`.
 
@@ -23,9 +23,9 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8001
 ```
-Check: http://localhost:8000/health returns `{"status":"ok"}`.
+Check: http://localhost:8001/health returns `{"status":"ok"}`.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest                    # tests
@@ -38,7 +38,7 @@ Check: http://localhost:8000/health returns `{"status":"ok"}`.
 cd frontend
 npm install
 Copy-Item .env.example .env.local
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3001
 npm run build      # production build
 ```
 The home page calls `GET {NEXT_PUBLIC_API_URL}/health` and shows the API status.

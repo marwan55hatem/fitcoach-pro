@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3001"])
 
-    database_url: str = "postgresql+psycopg://fitcoach:fitcoach@localhost:5432/fitcoach"
+    database_url: str = "postgresql+psycopg://fitcoach:fitcoach@localhost:5433/fitcoach"
     jwt_secret: str = "change-me"
 
     s3_endpoint_url: str = "http://localhost:9000"

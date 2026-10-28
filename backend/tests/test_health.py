@@ -12,5 +12,5 @@ def test_health_ok() -> None:
 
 
 def test_cors_allows_frontend_origin() -> None:
-    response = client.get("/health", headers={"Origin": "http://localhost:3000"})
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    response = client.get("/health", headers={"Origin": "http://localhost:3001"})
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3001"
