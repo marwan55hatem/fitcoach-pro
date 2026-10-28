@@ -68,6 +68,14 @@ These avoid the common 3000/8000/5432 so FitCoach can run next to other projects
 - **Migrations:** change a model, run `alembic revision --autogenerate -m "msg"`, review the generated file, then `alembic upgrade head`. Never edit a migration that was already pushed.
 - **Sample photos:** put real InBody or meal photos only in `docs/samples/` (gitignored). They are health data and must never be committed.
 
+### Exercise library
+Import the open exercise library (876 exercises with demo images, public domain, see [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md)) into your local database and MinIO bucket. Safe to re-run:
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.seed.exercises --check-plan
+```
+The first run downloads about 100 MB into `backend/.cache/` (gitignored). `--from-dir DIR` imports from a local copy, `--no-images` skips images, `--limit N` imports a sample. `--check-plan` reports whether the default 4-day split is fully covered.
+
 ### Deleting an account
 `DELETE /me` is irreversible and requires the current password in the body:
 ```powershell

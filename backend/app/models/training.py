@@ -28,6 +28,8 @@ class Exercise(IdMixin, TimestampMixin, Base):
     equipment: Mapped[str | None] = mapped_column(sa.String(64), index=True)
     level: Mapped[Experience | None] = mapped_column(enum_col(Experience))
     mechanic: Mapped[Mechanic | None] = mapped_column(enum_col(Mechanic))
+    # strength | powerlifting | olympic weightlifting | strongman | plyometrics | stretching | cardio
+    category: Mapped[str | None] = mapped_column(sa.String(32), index=True)
     instructions: Mapped[list[Any]] = mapped_column(
         server_default=sa.text("'[]'::jsonb")
     )
