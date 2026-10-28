@@ -1,7 +1,9 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_WEAK_SECRETS = {"", "change-me", "change-me-to-a-long-random-string"}
 
 
 class Settings(BaseSettings):
@@ -11,7 +13,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3001"])
 
     database_url: str = "postgresql+psycopg://fitcoach:fitcoach@localhost:5433/fitcoach"
+
     jwt_secret: str = "change-me"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 30
+    rate_limit_auth: str = "10/minute"
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "minioadmin"
@@ -26,6 +32,14 @@ class Settings(BaseSettings):
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@example.com"
+
+    @model_validator(mode="after")
+    def _require_real_secret_outside_dev(self) -> "Settings":
+        if self.app_env != "development" and (
+            self.jwt_secret in _WEAK_SECRETS or len(self.jwt_secret) < 32
+        ):
+            raise ValueError("JWT_SECRET must be a random string of 32+ characters")
+        return self
 
 
 @lru_cache

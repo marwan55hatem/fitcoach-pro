@@ -1,5 +1,6 @@
 """Import every model so Base.metadata is complete (Alembic autogenerate relies on this)."""
 
+from app.models.auth import RefreshToken
 from app.models.body import Checkin, InbodyScan, ProgressPhoto, WeightLog
 from app.models.coach import CoachNote, Conversation, Message, Recommendation
 from app.models.files import StoredFile
@@ -46,6 +47,7 @@ __all__ = [
     "ProgramExercise",
     "ProgressPhoto",
     "Recommendation",
+    "RefreshToken",
     "Reminder",
     "SetLog",
     "StoredFile",
