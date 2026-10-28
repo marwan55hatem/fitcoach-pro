@@ -12,7 +12,7 @@ Principles:
 - Backend: FastAPI (Python 3.12), PostgreSQL, SQLAlchemy 2, Alembic
 - Storage: S3-compatible private object storage (MinIO locally)
 - Frontend: Next.js (App Router, TypeScript, Tailwind), installable PWA
-- AI: Anthropic API (Claude) for chat, vision and program personalization
+- AI: OpenAI API (GPT) for chat, vision and program personalization, behind a provider interface so another vendor (for example Claude) can be added as one adapter
 
 ## Features
 

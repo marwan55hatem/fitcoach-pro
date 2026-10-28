@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,8 +26,19 @@ class Settings(BaseSettings):
     s3_bucket: str = "fitcoach"
     s3_region: str = "us-east-1"
 
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-5-5"
+    # AI: every model call goes through app/ai/client.py (see CLAUDE.md).
+    ai_provider: Literal["openai"] = "openai"
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""  # reserved for a future Claude provider adapter
+    # Empty model = the provider's default for that task (app/ai/models.py).
+    ai_model_main: str = ""  # coach chat, program generation
+    ai_model_vision: str = ""  # InBody and food photo extraction
+    ai_model_fast: str = ""  # cheap classification
+    ai_daily_token_budget: int = 300_000  # input + output tokens per user per day
+    ai_timeout_s: float = 60.0
+    ai_max_retries: int = 2
+    # Optional price overrides: {"model-id": [input, cached_input, output]} USD per 1M tokens.
+    ai_price_overrides: dict[str, list[float]] = Field(default_factory=dict)
 
     telegram_bot_token: str = ""
     vapid_public_key: str = ""

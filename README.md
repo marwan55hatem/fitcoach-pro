@@ -76,6 +76,22 @@ cd backend
 ```
 The first run downloads about 100 MB into `backend/.cache/` (gitignored). `--from-dir DIR` imports from a local copy, `--no-images` skips images, `--limit N` imports a sample. `--check-plan` reports whether the default 4-day split is fully covered.
 
+### AI (OpenAI)
+All AI calls go through `backend/app/ai/client.py`. Put your key in `backend/.env` (gitignored):
+```
+OPENAI_API_KEY=sk-...
+```
+Then verify the wiring (never prints the key, writes nothing to the database):
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.ai.check
+```
+It confirms your key can use the configured models, then makes one tiny structured call and one tool call with replay, and prints token usage and estimated cost.
+
+- Models per task are settings: `AI_MODEL_MAIN` (coach, programs), `AI_MODEL_VISION` (InBody and food photos), `AI_MODEL_FAST` (classification). Empty means the default in `app/ai/models.py`.
+- Each user has a daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 300000 input + output tokens). Usage and estimated cost are recorded per user per day in `ai_usage`.
+- Privacy: requests use `store=False` (OpenAI does not keep the response for retrieval) and send only a hashed user reference. Prompts, images and answers are never logged. Review OpenAI's current data-retention terms for API accounts before real users upload health data, and set a monthly spend limit in the OpenAI dashboard.
+
 ### Deleting an account
 `DELETE /me` is irreversible and requires the current password in the body:
 ```powershell

@@ -10,7 +10,8 @@ from app.db.base import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep application loggers alive: the default would silence them (and break log tests).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Tests (and tooling) may set sqlalchemy.url explicitly; otherwise use app settings.
 if not config.get_main_option("sqlalchemy.url"):
