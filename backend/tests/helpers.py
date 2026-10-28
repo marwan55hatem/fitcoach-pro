@@ -2,6 +2,7 @@ import uuid
 from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
+from httpx import Response
 
 PASSWORD = "correct-horse-battery"
 
@@ -16,6 +17,15 @@ class Account:
     @property
     def headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.access_token}"}
+
+
+def delete_me(
+    client: TestClient, account: Account, password: str = PASSWORD
+) -> Response:
+    """DELETE /me with the password confirmation body."""
+    return client.request(
+        "DELETE", "/me", headers=account.headers, json={"password": password}
+    )
 
 
 def register_and_login(client: TestClient, email: str | None = None) -> Account:

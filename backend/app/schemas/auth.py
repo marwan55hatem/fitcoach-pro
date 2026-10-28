@@ -15,6 +15,12 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=128)
 
 
+class DeleteAccountRequest(BaseModel):
+    """Re-authentication for the irreversible account deletion."""
+
+    password: str = Field(min_length=1, max_length=128)
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=1, max_length=256)
 

@@ -1,10 +1,13 @@
 from collections.abc import Iterator
 from typing import IO, Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.rate_limit import auth_limit
+from app.core.security import verify_password
+from app.schemas.auth import DeleteAccountRequest
 from app.services import audit
 from app.services.account import delete_account
 from app.services.export import build_export
@@ -42,7 +45,23 @@ def export_data(
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
-def delete_me(user: CurrentUser, db: DbSession, storage: StorageDep) -> Response:
-    """Irreversibly delete the account, all data and all stored files."""
+@auth_limit  # also throttles password guessing with a stolen access token
+def delete_me(
+    request: Request,
+    body: DeleteAccountRequest,
+    user: CurrentUser,
+    db: DbSession,
+    storage: StorageDep,
+) -> Response:
+    """Irreversibly delete the account, all data and all stored files.
+
+    Requires the current password so a stolen access token alone cannot wipe an account.
+    """
+    valid, _ = verify_password(body.password, user.password_hash)
+    if not valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+        )
     delete_account(db, storage, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

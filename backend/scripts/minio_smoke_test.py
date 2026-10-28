@@ -32,7 +32,9 @@ def main() -> None:
 
     # Bucket must be private: an unsigned request has to be rejected.
     anon = httpx.get(f"{s.s3_endpoint_url}/{s.s3_bucket}/{key}")
-    assert anon.status_code in (401, 403), f"object is publicly readable ({anon.status_code})"
+    assert anon.status_code in (401, 403), (
+        f"object is publicly readable ({anon.status_code})"
+    )
     print(f"anonymous access denied ({anon.status_code}) -> bucket is private")
 
     # Signed short-lived link works.

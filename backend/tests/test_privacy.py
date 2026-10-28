@@ -5,10 +5,13 @@ import uuid
 import zipfile
 from decimal import Decimal
 
+import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.models import (
     AuditLog,
     Consent,
@@ -21,7 +24,7 @@ from app.models import (
 )
 from app.models.enums import FileKind, MealSlot, MealSource
 from app.services.storage import Storage, user_prefix
-from tests.helpers import register_and_login
+from tests.helpers import PASSWORD, delete_me, register_and_login
 
 TODAY = dt.date(2026, 10, 28)
 IMAGE_BYTES = b"\x89PNG-fake-image-bytes"
@@ -159,7 +162,7 @@ def test_delete_removes_db_rows_and_storage_objects(
     )
     assert all(storage.exists(k) for k in [*alice_keys, orphan])
 
-    res = client.delete("/me", headers=alice.headers)
+    res = delete_me(client, alice)
     assert res.status_code == 204
 
     # Every DB row owned by alice is gone...
@@ -199,7 +202,7 @@ def test_delete_writes_audit_entry_without_personal_content(
 ) -> None:
     alice = register_and_login(client, "alice@example.com")
     seed_user_data(db, storage, alice.id)
-    client.delete("/me", headers=alice.headers)
+    delete_me(client, alice)
 
     entry = db.scalars(
         sa.select(AuditLog).where(AuditLog.action == "account.delete")
@@ -227,13 +230,51 @@ def test_delete_keeps_account_if_storage_fails(
 
     monkeypatch.setattr(Storage, "delete", boom)
     failing = TestClient(client.app, raise_server_exceptions=False)
-    assert failing.delete("/me", headers=alice.headers).status_code == 500
+    assert delete_me(failing, alice).status_code == 500
     monkeypatch.undo()
 
     # Nothing was deleted from the DB, so the request can be retried.
     assert db.get(User, alice.id) is not None
-    assert client.delete("/me", headers=alice.headers).status_code == 204
+    assert delete_me(client, alice).status_code == 204
 
 
 def test_delete_requires_auth(client: TestClient) -> None:
+    assert (
+        client.request("DELETE", "/me", json={"password": PASSWORD}).status_code == 401
+    )
     assert client.delete("/me").status_code == 401
+
+
+def test_delete_requires_correct_password_and_deletes_nothing_otherwise(
+    client: TestClient, db: Session, storage: Storage
+) -> None:
+    alice = register_and_login(client)
+    keys = seed_user_data(db, storage, alice.id)
+
+    # A valid access token alone is not enough.
+    assert delete_me(client, alice, password="not-the-password").status_code == 401
+    assert (
+        client.delete("/me", headers=alice.headers).status_code == 422
+    )  # no body at all
+
+    assert db.get(User, alice.id) is not None
+    assert all(storage.exists(k) for k in keys)
+    assert not db.scalars(
+        sa.select(AuditLog).where(AuditLog.action == "account.delete")
+    ).first()
+
+    assert delete_me(client, alice).status_code == 204
+
+
+def test_delete_password_guessing_is_rate_limited(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    alice = register_and_login(client)
+    monkeypatch.setattr(get_settings(), "rate_limit_auth", "3/minute")
+    limiter.enabled = True
+    limiter.reset()
+
+    codes = [
+        delete_me(client, alice, password="wrong-guess").status_code for _ in range(5)
+    ]
+    assert codes == [401, 401, 401, 429, 429]

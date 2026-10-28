@@ -33,6 +33,17 @@ minio-data/
 .minio/
 *.dump
 
+# Real InBody scans / meal photos used for manual AI tests: health data, never commit
+docs/samples/
+*.zip
+*.heic
+*.heif
+
+# --- Local seed / download caches ---
+.cache/
+backend/.cache/
+backend/data/
+
 # --- Local infra data ---
 pgdata/
 

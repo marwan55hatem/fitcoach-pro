@@ -52,5 +52,28 @@ npm run build      # production build
 ```
 The home page calls `GET {NEXT_PUBLIC_API_URL}/health` and shows the API status.
 
+## Development reference
+
+| Service | Local port |
+|---|---|
+| API (FastAPI) | 8001 |
+| Web (Next.js) | 3001 |
+| PostgreSQL | 5433 |
+| MinIO S3 / console | 9000 / 9001 |
+
+These avoid the common 3000/8000/5432 so FitCoach can run next to other projects.
+
+- **Tests:** `cd backend; .\.venv\Scripts\python.exe -m pytest` (needs `docker compose up -d`; they use a throwaway `fitcoach_test` database and a `fitcoach-test` bucket, never your dev data).
+- **Before committing:** `ruff check .`, `ruff format --check .`, `alembic check`, `pytest`; in `frontend/`: `npm run lint` and `npm run build`. CI (`.github/workflows/ci.yml`) runs the same commands.
+- **Migrations:** change a model, run `alembic revision --autogenerate -m "msg"`, review the generated file, then `alembic upgrade head`. Never edit a migration that was already pushed.
+- **Sample photos:** put real InBody or meal photos only in `docs/samples/` (gitignored). They are health data and must never be committed.
+
+### Deleting an account
+`DELETE /me` is irreversible and requires the current password in the body:
+```powershell
+Invoke-RestMethod http://localhost:8001/me -Method Delete -Headers @{Authorization="Bearer $token"} `
+  -ContentType application/json -Body '{"password":"your-password"}'
+```
+
 ## Configuration
 Copy `.env.example` files to `.env` (backend) / `.env.local` (frontend). Never commit real secrets.
