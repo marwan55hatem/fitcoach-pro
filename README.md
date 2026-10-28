@@ -33,6 +33,15 @@ Check: http://localhost:8001/health returns `{"status":"ok"}`.
 .\.venv\Scripts\python.exe -m scripts.minio_smoke_test  # MinIO upload/download + private-bucket check
 ```
 
+### Database migrations
+```powershell
+cd backend
+.\.venv\Scripts\alembic.exe upgrade head                          # apply
+.\.venv\Scripts\alembic.exe revision --autogenerate -m "msg"   # new migration after model changes
+.\.venv\Scripts\alembic.exe check                                 # fail if models and DB drift
+```
+Tests create a throwaway `fitcoach_test` database and run the real migrations against it.
+
 ## 3. Frontend
 ```powershell
 cd frontend
