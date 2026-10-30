@@ -14,6 +14,18 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3001"])
 
     database_url: str = "postgresql+psycopg://fitcoach:fitcoach@localhost:5433/fitcoach"
+    # Capacity (per worker process). Total database connections = workers x pool capacity,
+    # so keep that under Postgres max_connections (or put PgBouncer in front).
+    request_threads: int = 32  # threads serving sync endpoints
+    db_pool_size: int = 16
+    db_max_overflow: int = 24
+    db_pool_timeout_s: float = 10.0  # fail fast with a 503 instead of hanging
+    # Requests allowed in flight at once. Must not exceed the pool capacity, or requests
+    # can starve each other of connections and wedge the server (see core/concurrency.py).
+    max_inflight_requests: int = 40
+    inflight_wait_s: float = (
+        1.0  # how long an excess request waits for a slot before a 503
+    )
 
     jwt_secret: str = "change-me"
     access_token_minutes: int = 15
@@ -44,6 +56,15 @@ class Settings(BaseSettings):
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@example.com"
+
+    @model_validator(mode="after")
+    def _inflight_must_fit_the_pool(self) -> "Settings":
+        if self.max_inflight_requests > self.db_pool_size + self.db_max_overflow:
+            raise ValueError(
+                "MAX_INFLIGHT_REQUESTS must not exceed DB_POOL_SIZE + DB_MAX_OVERFLOW, "
+                "or requests can starve each other of database connections"
+            )
+        return self
 
     @model_validator(mode="after")
     def _require_real_secret_outside_dev(self) -> "Settings":

@@ -28,6 +28,11 @@ See [docs/PROJECT.md](docs/PROJECT.md) for vision and features.
 - Provider requests are stateless (`store=False`) and carry only a pseudonymous hash, never a name or email.
 - Tests use `tests/fakes/ai.py` (`FakeProvider`); never call a real model from the test suite.
 
+## Capacity
+- In-flight requests per worker never exceed the DB pool capacity (`MAX_INFLIGHT_REQUESTS <= DB_POOL_SIZE + DB_MAX_OVERFLOW`, enforced by settings validation). Do not raise one without the other.
+- Never hold a database session open across a slow external call (AI provider, storage): finish and release it first.
+- Total DB connections = workers x pool capacity; stay under Postgres `max_connections` or use a pooler.
+
 ## Privacy and sensitive data
 - Health data, InBody scans and body photos are sensitive.
 - Private object storage only. No public URLs. Access via signed, short-lived links.

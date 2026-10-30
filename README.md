@@ -92,6 +92,18 @@ It confirms your key can use the configured models, then makes one tiny structur
 - Each user has a daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 300000 input + output tokens). Usage and estimated cost are recorded per user per day in `ai_usage`.
 - Privacy: requests use `store=False` (OpenAI does not keep the response for retrieval) and send only a hashed user reference. Prompts, images and answers are never logged. Review OpenAI's current data-retention terms for API accounts before real users upload health data, and set a monthly spend limit in the OpenAI dashboard.
 
+### Capacity and load testing
+The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
+
+Load test a running server (never production), ideally from a second machine:
+```powershell
+cd backend
+$env:RATE_LIMIT_AUTH="10000000/minute"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8011
+# in another terminal:
+.\.venv\Scripts\python.exe -m scripts.loadtest http://localhost:8011 "my label" 12
+```
+
 ### Deleting an account
 `DELETE /me` is irreversible and requires the current password in the body:
 ```powershell
