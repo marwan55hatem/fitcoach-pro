@@ -1,6 +1,6 @@
 """Default model per task and provider, plus price estimates.
 
-Model IDs and prices come from the provider's published docs (checked 2026-10-28) and
+Model IDs and prices come from the provider's published docs (checked 2026-10-31) and
 change often: override per task with AI_MODEL_* and per model with AI_PRICE_OVERRIDES.
 `python -m app.ai.check` confirms the configured models exist for your API key.
 """
@@ -11,6 +11,13 @@ from decimal import Decimal
 from app.ai.types import Task, Usage
 
 DEFAULT_MODELS: dict[str, dict[Task, str]] = {
+    "groq": {
+        Task.MAIN: "openai/gpt-oss-120b",
+        # The only self-serve Groq model with image input. It is a PREVIEW model that can be
+        # discontinued at short notice: re-evaluate before production.
+        Task.VISION: "qwen/qwen3.8-27b",
+        Task.FAST: "openai/gpt-oss-20b",
+    },
     "openai": {
         Task.MAIN: "gpt-6.1-sol",  # near-flagship quality at a lower price
         Task.VISION: "gpt-6.1-sol",
@@ -29,6 +36,10 @@ class ModelPrice:
 
 
 DEFAULT_PRICES: dict[str, ModelPrice] = {
+    # Groq: no cached-input discount assumed, so estimates err on the high side.
+    "openai/gpt-oss-120b": ModelPrice(0.15, 0.15, 0.60),
+    "openai/gpt-oss-20b": ModelPrice(0.075, 0.075, 0.30),
+    "qwen/qwen3.8-27b": ModelPrice(0.80, 0.80, 4.00),
     "gpt-6-astra": ModelPrice(10.00, 1.00, 50.00),
     "gpt-6.1-sol": ModelPrice(2.00, 0.10, 10.00),
     "gpt-6-sol": ModelPrice(2.00, 0.20, 10.00),

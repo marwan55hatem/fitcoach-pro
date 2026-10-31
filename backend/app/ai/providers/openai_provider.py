@@ -45,12 +45,54 @@ _QUOTA_CODES = {"insufficient_quota", "credit_balance_exhausted"}
 
 
 def build_client(
-    api_key: str, timeout_s: float, http_client: httpx.Client | None = None
+    api_key: str,
+    timeout_s: float,
+    http_client: httpx.Client | None = None,
+    base_url: str | None = None,
 ) -> OpenAI:
     # max_retries=0: AiClient owns retries so behaviour is identical across providers.
     return OpenAI(
-        api_key=api_key, timeout=timeout_s, max_retries=0, http_client=http_client
+        api_key=api_key,
+        timeout=timeout_s,
+        max_retries=0,
+        http_client=http_client,
+        base_url=base_url,
     )
+
+
+def map_error(exc: Exception) -> Exception:
+    """Translate an OpenAI SDK error (also used for OpenAI-compatible vendors)."""
+    if isinstance(exc, openai.APITimeoutError):
+        return AiTimeoutError()
+    if isinstance(exc, openai.APIConnectionError):
+        return AiConnectionError()
+    if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
+        return AiNotConfiguredError()
+    if isinstance(exc, openai.RateLimitError):
+        # Out of credit is reported as a 429 too, but it is not a "slow down" error.
+        if (
+            getattr(exc, "type", None) == "insufficient_quota"
+            or getattr(exc, "code", None) in _QUOTA_CODES
+        ):
+            return AiQuotaError()
+        return AiRateLimitError()
+    if isinstance(exc, openai.APIStatusError):
+        return AiServerError() if exc.status_code >= 500 else AiProviderError()
+    if isinstance(
+        exc, (openai.LengthFinishReasonError, openai.ContentFilterFinishReasonError)
+    ):
+        return AiOutputError()
+    return AiProviderError()
+
+
+def parse_tool_arguments(raw: str | None) -> dict[str, Any]:
+    try:
+        arguments = json.loads(raw or "{}")
+    except json.JSONDecodeError as exc:
+        raise AiOutputError("tool call arguments were not valid JSON") from exc
+    if not isinstance(arguments, dict):
+        raise AiOutputError("tool call arguments were not an object")
+    return arguments
 
 
 class OpenAiProvider:
@@ -145,13 +187,13 @@ class OpenAiProvider:
         for item in getattr(response, "output", None) or []:
             if getattr(item, "type", None) != "function_call":
                 continue
-            try:
-                arguments = json.loads(item.arguments or "{}")
-            except json.JSONDecodeError as exc:
-                raise AiOutputError("tool call arguments were not valid JSON") from exc
-            if not isinstance(arguments, dict):
-                raise AiOutputError("tool call arguments were not an object")
-            calls.append(ToolCall(id=item.call_id, name=item.name, arguments=arguments))
+            calls.append(
+                ToolCall(
+                    id=item.call_id,
+                    name=item.name,
+                    arguments=parse_tool_arguments(item.arguments),
+                )
+            )
         return tuple(calls)
 
     @staticmethod
@@ -192,32 +234,6 @@ class OpenAiProvider:
             params["safety_identifier"] = user_ref
         return params
 
-    # --- error mapping ----------------------------------------------------------------
-
-    @staticmethod
-    def _map_error(exc: Exception) -> Exception:
-        if isinstance(exc, openai.APITimeoutError):
-            return AiTimeoutError()
-        if isinstance(exc, openai.APIConnectionError):
-            return AiConnectionError()
-        if isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)):
-            return AiNotConfiguredError()
-        if isinstance(exc, openai.RateLimitError):
-            # Out of credit is reported as a 429 too, but it is not a "slow down" error.
-            if (
-                getattr(exc, "type", None) == "insufficient_quota"
-                or getattr(exc, "code", None) in _QUOTA_CODES
-            ):
-                return AiQuotaError()
-            return AiRateLimitError()
-        if isinstance(exc, openai.APIStatusError):
-            return AiServerError() if exc.status_code >= 500 else AiProviderError()
-        if isinstance(
-            exc, (openai.LengthFinishReasonError, openai.ContentFilterFinishReasonError)
-        ):
-            return AiOutputError()
-        return AiProviderError()
-
     # --- Provider interface -----------------------------------------------------------
 
     def structured(
@@ -242,7 +258,7 @@ class OpenAiProvider:
             # The model answered, but not in our schema: let AiClient retry with feedback.
             return RawStructured(error=str(exc))
         except openai.OpenAIError as exc:
-            raise self._map_error(exc) from None
+            raise map_error(exc) from None
 
         usage = self._usage(response)
         request_id = getattr(response, "_request_id", None)
@@ -277,7 +293,7 @@ class OpenAiProvider:
                 input=self._input_items(messages), **params
             )
         except openai.OpenAIError as exc:
-            raise self._map_error(exc) from None
+            raise map_error(exc) from None
         return self._chat_result(response)
 
     def stream_chat(
@@ -305,5 +321,5 @@ class OpenAiProvider:
                         yield TextDelta(event.delta)
                 final = stream.get_final_response()
         except openai.OpenAIError as exc:
-            raise self._map_error(exc) from None
+            raise map_error(exc) from None
         yield StreamDone(self._chat_result(final))

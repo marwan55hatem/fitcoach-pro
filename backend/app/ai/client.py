@@ -310,13 +310,8 @@ class AiClient:
 def get_ai_client() -> AiClient:
     """FastAPI dependency / app-wide instance. Built lazily so tests and tooling can import
     the app without an API key; a missing key surfaces as AiNotConfiguredError per call."""
-    from app.ai.providers.openai_provider import OpenAiProvider, build_client
+    from app.ai.providers.factory import build_provider
     from app.db.session import SessionLocal
 
     settings = get_settings()
-    provider: Provider | None = None
-    if settings.ai_provider == "openai" and settings.openai_api_key:
-        provider = OpenAiProvider(
-            build_client(settings.openai_api_key, settings.ai_timeout_s)
-        )
-    return AiClient(provider, settings, SessionLocal)
+    return AiClient(build_provider(settings), settings, SessionLocal)

@@ -1,7 +1,7 @@
 # FitCoach PRO — Project Rules
 
 AI gym coach web app (installable PWA) meant to replace a human coach for day-to-day coaching.
-Stack: FastAPI (Python 3.12), PostgreSQL, SQLAlchemy 2, Alembic, S3-compatible private storage (MinIO locally), Next.js (App Router, TypeScript, Tailwind), an AI provider API (OpenAI GPT today, behind a provider interface) for chat, vision and program personalization.
+Stack: FastAPI (Python 3.12), PostgreSQL, SQLAlchemy 2, Alembic, S3-compatible private storage (MinIO locally), Next.js (App Router, TypeScript, Tailwind), an AI provider API (Groq today, OpenAI also supported, behind a provider interface) for chat, vision and program personalization.
 
 See [docs/PROJECT.md](docs/PROJECT.md) for vision and features.
 
@@ -25,7 +25,7 @@ See [docs/PROJECT.md](docs/PROJECT.md) for vision and features.
 - Every model call goes through `app/ai/client.py` (`AiClient`): never import a vendor SDK outside `app/ai/providers/`. The client owns the per-user daily token budget, usage and cost recording, retries, structured-output validation (one repair retry) and log hygiene.
 - Features pick a `Task` (`MAIN`, `VISION`, `FAST`), not a model name. Models are settings (`AI_MODEL_*`) with provider defaults in `app/ai/models.py`.
 - Wrap any user-, image- or note-derived text with `app/ai/untrusted.py`, start system prompts with `with_security_preamble`, and send images through `prepare_image` (JPEG, max 1600 px, metadata stripped). Body progress photos are never sent to an AI provider.
-- Provider requests are stateless (`store=False`) and carry only a pseudonymous hash, never a name or email.
+- Provider requests are stateless (OpenAI: `store=False`; Groq: Zero Data Retention on in the console) and carry only a pseudonymous hash, never a name or email.
 - Tests use `tests/fakes/ai.py` (`FakeProvider`); never call a real model from the test suite.
 
 ## Capacity

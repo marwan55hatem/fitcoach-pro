@@ -51,7 +51,8 @@ class Answer(BaseModel):
 
 
 def make_settings(**overrides) -> Settings:
-    return Settings(_env_file=None, **overrides)
+    # These tests pin OpenAI's model names and prices; Groq's are covered separately.
+    return Settings(_env_file=None, **{"ai_provider": "openai", **overrides})
 
 
 def make_user(db: Session) -> User:
@@ -379,14 +380,15 @@ def test_tasks_use_their_own_models_and_unknown_prices_cost_zero(db: Session) ->
 def test_get_ai_client_without_a_key_has_no_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(get_settings(), "openai_api_key", "")
+    monkeypatch.setattr(get_settings(), "ai_provider", "groq")
+    monkeypatch.setattr(get_settings(), "groq_api_key", "")
     get_ai_client.cache_clear()
     try:
         assert get_ai_client()._provider is None
-        monkeypatch.setattr(get_settings(), "openai_api_key", "sk-test-not-real")
+        monkeypatch.setattr(get_settings(), "groq_api_key", "gsk-test-not-real")
         get_ai_client.cache_clear()
         provider = get_ai_client()._provider
-        assert provider is not None and provider.name == "openai"
+        assert provider is not None and provider.name == "groq"
     finally:
         get_ai_client.cache_clear()
 

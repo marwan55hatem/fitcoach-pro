@@ -76,21 +76,23 @@ cd backend
 ```
 The first run downloads about 100 MB into `backend/.cache/` (gitignored). `--from-dir DIR` imports from a local copy, `--no-images` skips images, `--limit N` imports a sample. `--check-plan` reports whether the default 4-day split is fully covered.
 
-### AI (OpenAI)
-All AI calls go through `backend/app/ai/client.py`. Put your key in `backend/.env` (gitignored):
+### AI (Groq by default)
+All AI calls go through `backend/app/ai/client.py`. `AI_PROVIDER` picks the vendor: `groq` (default) or `openai`. Put the matching key in `backend/.env` (gitignored):
 ```
-OPENAI_API_KEY=sk-...
+GROQ_API_KEY=your-key
 ```
 Then verify the wiring (never prints the key, writes nothing to the database):
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m app.ai.check
 ```
-It confirms your key can use the configured models, then makes one tiny structured call and one tool call with replay, and prints token usage and estimated cost.
+It confirms your key can use the configured models, then tests strict JSON, a tool call with replay, streaming, and reading a generated image into strict JSON. It prints token usage and estimated cost for each.
 
 - Models per task are settings: `AI_MODEL_MAIN` (coach, programs), `AI_MODEL_VISION` (InBody and food photos), `AI_MODEL_FAST` (classification). Empty means the default in `app/ai/models.py`.
-- Each user has a daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 300000 input + output tokens). Usage and estimated cost are recorded per user per day in `ai_usage`.
-- Privacy: requests use `store=False` (OpenAI does not keep the response for retrieval) and send only a hashed user reference. Prompts, images and answers are never logged. Review OpenAI's current data-retention terms for API accounts before real users upload health data, and set a monthly spend limit in the OpenAI dashboard.
+- Each user has a daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 50000 input + output tokens). Usage and estimated cost are recorded per user per day in `ai_usage`.
+- Groq limits are shared across the whole account (Developer plan: 30 requests/min, 8K tokens/min, 200K tokens/day), which is fine for development but not for real users. See [docs/CAPACITY.md](docs/CAPACITY.md).
+- Groq's only self-serve vision model, `qwen/qwen3.8-27b`, is a preview model that can be discontinued at short notice. Re-evaluate before production.
+- Privacy: turn on **Zero Data Retention** in the Groq console (Data Controls). OpenAI requests use `store=False`. Both send only a hashed user reference, and prompts, images and answers are never logged. Review the provider's current terms, including model training, before real users upload health data.
 
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).

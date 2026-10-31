@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from PIL import Image
 
-from app.ai import untrusted
+from app.ai import check, untrusted
 from app.ai.models import (
     DEFAULT_MODELS,
     DEFAULT_PRICES,
@@ -13,6 +13,7 @@ from app.ai.models import (
     resolve_price,
 )
 from app.ai.types import Task, Usage
+from app.core.config import Settings
 
 # --- untrusted content ------------------------------------------------------------------
 
@@ -115,10 +116,27 @@ def test_prepare_image_rejects_non_images_and_bombs(
 # --- pricing ----------------------------------------------------------------------------
 
 
-def test_default_models_exist_for_every_task() -> None:
-    assert set(DEFAULT_MODELS["openai"]) == set(Task)
-    for model in DEFAULT_MODELS["openai"].values():
+@pytest.mark.parametrize("provider", sorted(DEFAULT_MODELS))
+def test_default_models_exist_for_every_task(provider: str) -> None:
+    assert set(DEFAULT_MODELS[provider]) == set(Task)
+    for model in DEFAULT_MODELS[provider].values():
         assert model in DEFAULT_PRICES  # every default has a known price
+
+
+def test_groq_prices_match_the_published_rates() -> None:
+    # 1M input + 1M output tokens
+    expected = {
+        "openai/gpt-oss-120b": "0.750000",
+        "openai/gpt-oss-20b": "0.375000",
+        "qwen/qwen3.8-27b": "4.800000",
+    }
+    for model, cost in expected.items():
+        assert estimate_cost(model, Usage(1_000_000, 1_000_000)) == Decimal(cost)
+
+
+def test_default_budget_stays_well_under_a_shared_provider_day() -> None:
+    # Groq's Developer plan allows 200K tokens/day across the whole account.
+    assert Settings(_env_file=None).ai_daily_token_budget <= 50_000
 
 
 def test_cost_without_cache() -> None:
@@ -151,3 +169,8 @@ def test_unknown_model_has_no_price_and_overrides_win() -> None:
 def test_usage_arithmetic() -> None:
     total = Usage(100, 20, 10) + Usage(50, 5, 0)
     assert total == Usage(150, 25, 10) and total.total == 175
+
+
+def test_live_check_sample_image_is_a_valid_input() -> None:
+    img = decode(untrusted.prepare_image(check._sample_image()))
+    assert img.format == "JPEG" and img.size == (900, 300)

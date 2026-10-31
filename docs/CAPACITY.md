@@ -37,7 +37,9 @@ Known soft spots: the exercise list signs 50 image URLs per request (CPU heavy),
 
 ## The real limit at that scale is the AI, not the API
 
-Using OpenAI's published numbers (checked 2026-10-28; re-check before relying on them): a coach reply of about 5k input and 500 output tokens on `gpt-6.1-sol` ($2 / $10 per 1M tokens) costs about **$0.015**, so one million replies is about **$15,000**. At the highest published tier (about 40M tokens/minute) that is roughly 110 to 220 replies per second, so a one-time burst of 1M replies would take around 1.5 to 2.5 hours. The per-user daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 300,000) exists so one user cannot spend more than roughly $1/day at worst.
+Using OpenAI's published numbers (checked 2026-10-28; re-check before relying on them): a coach reply of about 5k input and 500 output tokens on `gpt-6.1-sol` ($2 / $10 per 1M tokens) costs about **$0.015**, so one million replies is about **$15,000**. At the highest published tier (about 40M tokens/minute) that is roughly 110 to 220 replies per second, so a one-time burst of 1M replies would take around 1.5 to 2.5 hours. The per-user daily token budget (`AI_DAILY_TOKEN_BUDGET`, default 50,000) limits what one user can spend.
+
+**Groq (the default provider today)** is far cheaper, about $0.001 per coach reply on `openai/gpt-oss-120b`, but its published Developer plan limits are shared across the whole account: 30 requests/minute, 1,000 requests/day, 8K tokens/minute and 200K tokens/day (checked 2026-10-31). At about 5,500 tokens per reply that is roughly 1.5 replies a minute and 36 a day for **all** users combined. That suits development only: real users need a higher Groq tier or another provider for those tasks.
 
 ## What to build to actually serve ~1M registered users
 
