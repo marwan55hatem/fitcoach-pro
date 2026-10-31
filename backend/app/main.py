@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.ai.errors import AiError
-from app.api import auth, consents, exercises, health, me, onboarding
+from app.api import auth, consents, exercises, health, me, onboarding, programs
 from app.api.errors import PoolTimeoutError, ai_error_handler, db_busy_handler
 from app.core.concurrency import ConcurrencyLimitMiddleware
 from app.core.config import get_settings
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(me.router)
     app.include_router(onboarding.router)
     app.include_router(exercises.router)
+    app.include_router(programs.router)
     return app
 
 

@@ -48,6 +48,20 @@ def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def consent_required_error(consent_type: ConsentType) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "consent_required",
+            "consent": consent_type.value,
+            "message": (
+                f"Your consent for '{consent_type.value}' is required for this "
+                "feature. Grant it with PUT /consents."
+            ),
+        },
+    )
+
+
 def require_consent(consent_type: ConsentType) -> Callable[..., User]:
     """Dependency factory: 403 unless the user has an active consent of this type.
 
@@ -57,17 +71,7 @@ def require_consent(consent_type: ConsentType) -> Callable[..., User]:
 
     def dependency(user: CurrentUser, db: DbSession) -> User:
         if not has_consent(db, user.id, consent_type):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "code": "consent_required",
-                    "consent": consent_type.value,
-                    "message": (
-                        f"Your consent for '{consent_type.value}' is required for this "
-                        "feature. Grant it with PUT /consents."
-                    ),
-                },
-            )
+            raise consent_required_error(consent_type)
         return user
 
     return dependency

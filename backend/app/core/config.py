@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     rate_limit_auth: str = "10/minute"
+    rate_limit_ai: str = "10/minute"
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "minioadmin"

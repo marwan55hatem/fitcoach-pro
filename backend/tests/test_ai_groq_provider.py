@@ -157,6 +157,16 @@ def test_invalid_answers_are_reported_for_repair_not_raised(content: str) -> Non
     assert raw.parsed is None and raw.error
 
 
+def test_a_cut_off_answer_is_reported_and_its_tokens_counted() -> None:
+    provider, rec = make_provider()
+    body = completion({"content": '{"val'})
+    body["choices"][0]["finish_reason"] = "length"
+    rec.replies.append(body)
+    raw = provider.structured(messages=[UserMessage("q")], **STRUCTURED)
+    assert raw.parsed is None and "cut off" in raw.error
+    assert raw.usage == Usage(input_tokens=120, output_tokens=30)  # still billed
+
+
 def test_groq_schema_rejection_is_reported_for_repair() -> None:
     provider, rec = make_provider()
     rec.replies.append(error_reply(400, "json_validate_failed"))

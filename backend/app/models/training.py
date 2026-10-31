@@ -92,6 +92,7 @@ class ProgramDay(OwnedBase, Base):
     day_index: Mapped[int]
     name: Mapped[str] = mapped_column(sa.String(100))
     focus: Mapped[str | None] = mapped_column(sa.String(200))
+    rationale: Mapped[str | None] = mapped_column(sa.Text)
 
     program: Mapped[Program] = relationship(back_populates="days")
     exercises: Mapped[list["ProgramExercise"]] = relationship(

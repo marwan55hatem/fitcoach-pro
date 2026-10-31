@@ -170,6 +170,11 @@ class GroqProvider:
         except ValidationError as exc:
             # The model answered, but not in our schema: let AiClient retry with feedback.
             return RawStructured(error=str(exc))
+        except openai.LengthFinishReasonError as exc:
+            # Cut off at the token limit: the tokens were still spent, so report them.
+            return RawStructured(
+                error="the answer was cut off", usage=self._usage(exc.completion.usage)
+            )
         except openai.BadRequestError as exc:
             if getattr(exc, "code", None) in _INVALID_JSON_CODES:
                 return RawStructured(error="the answer did not match the JSON schema")

@@ -94,6 +94,9 @@ It confirms your key can use the configured models, then tests strict JSON, a to
 - Groq's only self-serve vision model, `qwen/qwen3.8-27b`, is a preview model that can be discontinued at short notice. Re-evaluate before production.
 - Privacy: turn on **Zero Data Retention** in the Groq console (Data Controls). OpenAI requests use `store=False`. Both send only a hashed user reference, and prompts, images and answers are never logged. Review the provider's current terms, including model training, before real users upload health data.
 
+### Training programs
+`POST /programs/generate` creates a draft: the AI proposes, `app/rules/program_validator.py` checks it (exercises, equipment, injuries, weekly volume, session length, order), and invalid answers get one retry before falling back to a rules-only template. `{"use_ai": false}` skips the AI entirely. Nothing changes until `POST /programs/{id}/accept`, which validates again and archives the previous program. See it with `GET /programs/{id}/preview` and `GET /programs/current`.
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

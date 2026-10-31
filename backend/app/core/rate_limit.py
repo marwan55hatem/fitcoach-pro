@@ -8,3 +8,4 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Evaluated per request so the limit can be changed through settings.
 auth_limit = limiter.limit(lambda: get_settings().rate_limit_auth)
+ai_limit = limiter.limit(lambda: get_settings().rate_limit_ai)

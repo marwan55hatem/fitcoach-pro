@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import Exercise, Limitation, Profile, User
 from app.models.enums import BodyArea, Equipment, Experience, Mechanic, Severity
 from app.rules.exercise_catalog import (
+    STRENGTH_CATEGORIES,
     CatalogExercise,
     rank_substitutes,
     slugify,
@@ -93,7 +94,7 @@ def get_visible(db: Session, user: User, exercise_id: uuid.UUID) -> Exercise:
     return row
 
 
-def _catalog_view(ex: Exercise) -> CatalogExercise:
+def catalog_view(ex: Exercise) -> CatalogExercise:
     return CatalogExercise(
         id=str(ex.id),
         name=ex.name,
@@ -172,13 +173,23 @@ def find_substitutes(
     )
 
     ranked = rank_substitutes(
-        _catalog_view(target),
-        [_catalog_view(c) for c in candidates],
+        catalog_view(target),
+        [catalog_view(c) for c in candidates],
         user_equipment=equipment_used,
         excluded_ids=excluded,
         limit=limit,
     )
     return [by_id[r.id] for r in ranked], equipment_used, areas_used
+
+
+def strength_catalog(db: Session, user: User) -> dict[str, CatalogExercise]:
+    """Every strength exercise this user may be given, keyed by id."""
+    rows = db.scalars(
+        sa.select(Exercise).where(
+            _visible(user), Exercise.category.in_(STRENGTH_CATEGORIES)
+        )
+    )
+    return {str(row.id): catalog_view(row) for row in rows}
 
 
 def create_custom(db: Session, user: User, data: CustomExerciseIn) -> Exercise:
