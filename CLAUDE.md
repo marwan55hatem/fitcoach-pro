@@ -28,6 +28,13 @@ See [docs/PROJECT.md](docs/PROJECT.md) for vision and features.
 - Provider requests are stateless (OpenAI: `store=False`; Groq: Zero Data Retention on in the console) and carry only a pseudonymous hash, never a name or email.
 - Tests use `tests/fakes/ai.py` (`FakeProvider`); never call a real model from the test suite.
 
+## Frontend
+- Read `frontend/node_modules/next/dist/docs/` before using a Next.js API (this version differs from older ones; Cache Components is on).
+- Every user-facing string goes in both `lib/i18n/en.ts` and `lib/i18n/ar.ts` (Egyptian Arabic, right to left). Use logical CSS (`ms-`, `pe-`, `start`), never left/right.
+- The browser only talks to the Next.js app: the refresh token stays in an httpOnly cookie and the access token in memory. Never put tokens in localStorage or readable cookies.
+- The service worker never caches `/api/*` or health data.
+- Mobile first: tap targets at least 44 px; check new screens on a phone-size viewport in both languages.
+
 ## Capacity
 - In-flight requests per worker never exceed the DB pool capacity (`MAX_INFLIGHT_REQUESTS <= DB_POOL_SIZE + DB_MAX_OVERFLOW`, enforced by settings validation). Do not raise one without the other.
 - Never hold a database session open across a slow external call (AI provider, storage): finish and release it first.

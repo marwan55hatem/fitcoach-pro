@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     rate_limit_auth: str = "10/minute"
     rate_limit_ai: str = "10/minute"
+    # Peers allowed to say who the real client is (X-Forwarded-For): the Next.js server.
+    trusted_proxy_ips: list[str] = Field(default_factory=lambda: ["127.0.0.1", "::1"])
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "minioadmin"

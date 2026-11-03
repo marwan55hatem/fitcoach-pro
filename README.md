@@ -49,8 +49,16 @@ npm install
 Copy-Item .env.example .env.local
 npm run dev        # http://localhost:3001
 npm run build      # production build
+npm run e2e        # Playwright: sign-up, onboarding, program, delete (phone viewport)
 ```
-The home page calls `GET {NEXT_PUBLIC_API_URL}/health` and shows the API status.
+Run the API too (section 2). The e2e tests use your local database and delete the accounts they create. They need the exercise library seeded and, the first time, `npx playwright install chromium`.
+
+How the web app is put together:
+- **Languages:** every page lives under `/en` or `/ar`. Arabic is Egyptian Arabic, laid out right to left. `/` picks your saved choice, otherwise your browser's language. The strings are in `lib/i18n/en.ts` and `lib/i18n/ar.ts`, and TypeScript rejects the Arabic file if a key is missing.
+- **Login (backend-for-frontend):** the browser talks only to this app. `app/api/auth/*` stores the refresh token in an httpOnly cookie, and the short-lived access token stays in memory: never in localStorage. `app/api/backend/*` passes API calls on to `API_URL`, along with the caller's IP so the API's rate limit applies per user (`TRUSTED_PROXY_IPS` on the API).
+- **Installable app:** `app/manifest.ts`, icons in `public/icons` (made by `node scripts/make-icons.mjs`) and a hand-written `public/sw.js`. The service worker only caches the app shell and an offline page, never API data, and it is registered in production builds only.
+
+**Testing on your phone:** the camera, installing the app and push notifications all need HTTPS, and your phone can't reach `localhost`. Either run `npx next dev --port 3001 --experimental-https` and open `https://<your-PC-IP>:3001` on the same Wi-Fi (accept the certificate warning), or start a tunnel with `cloudflared tunnel --url http://localhost:3001` and open the `https://….trycloudflare.com` address it prints.
 
 ## Development reference
 

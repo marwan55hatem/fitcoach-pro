@@ -57,3 +57,4 @@ Thumbs.db
 
 # --- Claude Code local state ---
 .claude/settings.local.json
+.claude/launch.json
