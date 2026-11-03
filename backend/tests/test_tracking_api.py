@@ -239,6 +239,20 @@ def test_finish_reports_new_records_and_next_targets(client, user, program) -> N
     )
 
 
+def test_last_ignores_the_workout_in_progress(client, user, program) -> None:
+    day = program["days"][0]
+    first = day["exercises"][0]["exercise_id"]
+    one = started(client, user, day)
+    do_sets(client, user, one, first, 80, 8)
+    finish(client, user, one)
+
+    two = started(client, user, day)
+    do_sets(client, user, two, first, 100, 8)  # still lifting: not "last time" yet
+    last = client.get(f"/exercises/{first}/last", headers=user.headers).json()
+    assert {s["weight_kg"] for s in last["last_sets"]} == {80}
+    assert last["personal_best"]["heaviest"]["weight_kg"] == 80
+
+
 def test_last_for_a_never_done_exercise(client, user, library) -> None:
     ex = library["Barbell Curl"]
     res = client.get(f"/exercises/{ex.id}/last", headers=user.headers)
@@ -290,6 +304,14 @@ def test_other_users_session_is_404(client, user, program, library) -> None:
         ("GET", f"/sessions/{session['id']}", None),
         ("PATCH", f"/sessions/{session['id']}/sets/{set_id}", {"reps": 5}),
         ("POST", f"/sessions/{session['id']}/finish", None),
+        (
+            "POST",
+            f"/sessions/{session['id']}/swap",
+            {
+                "program_exercise_id": session["sets"][0]["program_exercise_id"],
+                "exercise_id": session["sets"][0]["exercise_id"],
+            },
+        ),
         ("DELETE", f"/sessions/{session['id']}", None),
     ]:
         res = client.request(method, path, headers=other.headers, json=body)
@@ -298,6 +320,134 @@ def test_other_users_session_is_404(client, user, program, library) -> None:
     mine = start(client, other, None).json()
     res = patch_set(client, other, mine, set_id, reps=5)
     assert res.status_code == 404
+
+
+def swap(client, account, session, program_exercise_id, exercise_id):
+    return client.post(
+        f"/sessions/{session['id']}/swap",
+        headers=account.headers,
+        json={"program_exercise_id": program_exercise_id, "exercise_id": exercise_id},
+    )
+
+
+def slot(body: dict[str, Any], program_exercise_id: str) -> list[dict[str, Any]]:
+    return [s for s in body["sets"] if s["program_exercise_id"] == program_exercise_id]
+
+
+def day_with(program: dict[str, Any], name: str) -> tuple[dict, dict]:
+    for day in program["days"]:
+        for planned in day["exercises"]:
+            if planned["name"] == name:
+                return day, planned
+    raise AssertionError(f"{name} is not in the program")
+
+
+def test_swap_moves_the_remaining_sets(client, user, program, library) -> None:
+    day = program["days"][0]
+    planned = day["exercises"][0]
+    session = started(client, user, day)
+    first = slot(session, planned["id"])[0]
+    patch_set(client, user, session, first["id"], weight_kg=60, reps=10, done=True)
+    patch_set(client, user, session, slot(session, planned["id"])[1]["id"], reps=7)
+
+    subs = client.get(
+        f"/exercises/{planned['exercise_id']}/substitutes", headers=user.headers
+    ).json()["substitutes"]
+    target = subs[0]["id"]
+    already = sum(1 for s in session["sets"] if s["exercise_id"] == target)
+
+    res = swap(client, user, session, planned["id"], target)
+    assert res.status_code == 200, res.text
+    sets = slot(res.json(), planned["id"])
+    assert len(sets) == planned["sets"]
+    kept, moved = sets[0], sets[1:]
+    # The done set stays with the exercise it was lifted on.
+    assert (kept["exercise_id"], kept["done"], kept["reps"]) == (
+        planned["exercise_id"],
+        True,
+        10,
+    )
+    assert {s["exercise_id"] for s in moved} == {target}
+    assert all(s["reps"] is None and s["weight_kg"] is None for s in moved)
+    assert all(not s["done"] and s["target_weight_kg"] is None for s in moved)
+    assert {s["target_reps_min"] for s in moved} == {planned["rep_min"]}
+    # Numbered after any sets the new exercise already has in this workout.
+    assert [s["set_number"] for s in moved] == list(
+        range(already + 1, already + len(moved) + 1)
+    )
+    assert res.json()["sets_planned"] == session["sets_planned"]
+
+    # Swapping back to the planned exercise is always allowed.
+    back = swap(client, user, session, planned["id"], planned["exercise_id"])
+    assert back.status_code == 200, back.text
+    assert {s["exercise_id"] for s in slot(back.json(), planned["id"])} == {
+        planned["exercise_id"]
+    }
+
+
+def test_swap_carries_the_new_exercises_last_weight(client, user, program) -> None:
+    day = program["days"][0]
+    planned = day["exercises"][0]
+    subs = client.get(
+        f"/exercises/{planned['exercise_id']}/substitutes", headers=user.headers
+    ).json()["substitutes"]
+    target = subs[0]["id"]
+    earlier = start(client, user, None).json()
+    res = client.post(
+        f"/sessions/{earlier['id']}/sets",
+        headers=user.headers,
+        json={"exercise_id": target, "weight_kg": 30, "reps": 10, "done": True},
+    )
+    assert res.status_code == 201
+    finish(client, user, earlier)
+
+    session = started(client, user, day)
+    res = swap(client, user, session, planned["id"], target)
+    moved = [s for s in slot(res.json(), planned["id"]) if s["exercise_id"] == target]
+    assert {s["target_weight_kg"] for s in moved} == {30}
+
+
+def test_swap_only_to_a_real_substitute(client, user, program, library) -> None:
+    day = program["days"][0]
+    planned = day["exercises"][0]
+    session = started(client, user, day)
+    squat = str(library["Barbell Full Squat"].id)
+    assert swap(client, user, session, planned["id"], squat).status_code == 422
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert swap(client, user, session, planned["id"], missing).status_code == 404
+    assert swap(client, user, session, missing, squat).status_code == 404
+
+
+def test_swap_respects_injuries(client, user, program, library) -> None:
+    day, planned = day_with(program, "Barbell Full Squat")
+    session = started(client, user, day)
+    leg_press = str(library["Leg Press"].id)
+    res = client.put(
+        "/onboarding/limitations",
+        headers=user.headers,
+        json={"limitations": [{"body_area": "knee", "severity": "mild"}]},
+    )
+    assert res.status_code == 200, res.text
+    assert swap(client, user, session, planned["id"], leg_press).status_code == 422
+    client.put(
+        "/onboarding/limitations", headers=user.headers, json={"limitations": []}
+    )
+    assert swap(client, user, session, planned["id"], leg_press).status_code == 200
+
+
+def test_swap_needs_an_open_session_and_sets_left(client, user, program) -> None:
+    day = program["days"][0]
+    planned = day["exercises"][0]
+    subs = client.get(
+        f"/exercises/{planned['exercise_id']}/substitutes", headers=user.headers
+    ).json()["substitutes"]
+    session = started(client, user, day)
+    do_sets(client, user, session, planned["exercise_id"], 60, 10)
+    res = swap(client, user, session, planned["id"], subs[0]["id"])
+    assert res.status_code == 409  # every set of it is done
+    finish(client, user, session)
+    res = swap(client, user, session, day["exercises"][1]["id"], subs[0]["id"])
+    assert res.status_code == 409
 
 
 def test_training_needs_health_consent(client, library) -> None:

@@ -10,7 +10,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
-  workers: 1, // the API's auth rate limit is shared by every test
+  workers: 1, // one database and one API for every test
   retries: 0,
   reporter: [["list"]],
   use: {
@@ -26,6 +26,8 @@ export default defineConfig({
       url: "http://localhost:8001/health",
       reuseExistingServer: true,
       timeout: 60_000,
+      // Each test signs up and logs in; the real limit (10 a minute per IP) would trip.
+      env: { RATE_LIMIT_AUTH: "1000/minute" },
     },
     {
       command: "npm run dev",

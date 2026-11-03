@@ -19,6 +19,11 @@ class SetPatchIn(BaseModel):
     is_warmup: bool | None = None
 
 
+class SwapIn(BaseModel):
+    program_exercise_id: uuid.UUID  # the planned slot whose remaining sets change
+    exercise_id: uuid.UUID  # the exercise to do instead
+
+
 class AddSetIn(BaseModel):
     exercise_id: uuid.UUID
     weight_kg: float | None = Field(default=None, ge=0, le=1000)

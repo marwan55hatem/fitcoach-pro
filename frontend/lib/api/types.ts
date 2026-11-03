@@ -183,3 +183,76 @@ export type GeneratedProgram = Program & {
   source: "ai" | "template";
   fallback_reason: string | null;
 };
+
+export type SetLog = {
+  id: string;
+  exercise_id: string;
+  exercise_name: string;
+  program_exercise_id: string | null;
+  set_number: number;
+  weight_kg: number | null;
+  reps: number | null;
+  rpe: number | null;
+  done: boolean;
+  is_warmup: boolean;
+  target_reps_min: number | null;
+  target_reps_max: number | null;
+  target_weight_kg: number | null;
+};
+export type SetPatch = Partial<Pick<SetLog, "weight_kg" | "reps" | "rpe" | "done">>;
+export type SessionSummary = {
+  id: string;
+  program_day_id: string | null;
+  day_name: string | null;
+  performed_on: string;
+  started_at: string | null;
+  ended_at: string | null;
+  sets_done: number;
+  sets_planned: number;
+  volume_kg: number;
+};
+export type WorkoutSession = SessionSummary & { notes: string | null; sets: SetLog[] };
+export type FinishedSession = WorkoutSession & { new_records: string[] };
+export type SessionList = { items: SessionSummary[]; total: number; limit: number; offset: number };
+
+export type ExerciseSummary = {
+  id: string;
+  name: string;
+  muscle_primary: string;
+  muscles_secondary: string[];
+  equipment: string | null;
+  image_url: string | null;
+};
+export type ExerciseDetail = ExerciseSummary & {
+  instructions: string[];
+  image_urls: string[]; // signed, valid for five minutes
+  attribution: string | null;
+};
+export type Substitutes = { exercise_id: string; substitutes: ExerciseSummary[] };
+export type BestSet = { weight_kg: number; reps: number; date: string; estimated_1rm_kg: number | null };
+export type ExerciseLast = {
+  exercise_id: string;
+  last_date: string | null;
+  last_sets: { set_number: number; weight_kg: number | null; reps: number; rpe: number | null }[];
+  personal_best: { best_e1rm: BestSet | null; heaviest: BestSet | null; most_reps: number } | null;
+};
+
+export type WeightHistory = {
+  points: { date: string; weight_kg: number; average_7d: number }[];
+  latest_kg: number | null;
+  average_7d: number | null;
+  weekly_change_kg: number | null;
+};
+export const CHECKIN_SCORES = ["energy", "motivation", "soreness", "stress"] as const;
+export type CheckinScore = (typeof CHECKIN_SCORES)[number];
+export type CheckinIn = { sleep_h: number | null } & Record<CheckinScore, number | null>;
+export type Checkin = CheckinIn & { id: string; date: string; notes: string | null };
+
+export type Macros = { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+export type NutritionDay = {
+  date: string;
+  water_ml: number;
+  totals: Macros & { meals_counted: number; drafts_excluded: number };
+  targets: (Macros & { water_ml: number }) | null; // null when targets are withheld
+  targets_withheld: boolean;
+};

@@ -6,6 +6,7 @@ from app.rules.exercise_catalog import (
     MUSCLES,
     CatalogExercise,
     is_available,
+    is_substitute,
     normalize_equipment,
     normalize_level,
     normalize_mechanic,
@@ -229,6 +230,27 @@ def test_substitutes_rank_similar_exercises_first_with_stable_ties() -> None:
         "Dumbbell Flyes",
         "Cable Crossover",
     ]
+
+
+def test_is_substitute_checks_one_candidate() -> None:
+    gym = [E.DUMBBELL, E.BENCH]
+    incline, flyes, crossover, pushups, squat, stretch = POOL[1:]
+    assert is_substitute(BENCH, incline, user_equipment=gym)
+    assert is_substitute(BENCH, flyes, user_equipment=gym)
+    assert not is_substitute(BENCH, BENCH, user_equipment=gym)  # never itself
+    assert not is_substitute(BENCH, squat, user_equipment=[E.BARBELL])  # other muscle
+    assert not is_substitute(BENCH, crossover, user_equipment=gym)  # no cable
+    assert not is_substitute(BENCH, stretch, user_equipment=gym)  # not strength
+    assert not is_substitute(
+        BENCH, pushups, user_equipment=gym, excluded_ids=frozenset({"pushups"})
+    )
+
+
+def test_is_substitute_agrees_with_the_ranking() -> None:
+    gym = [E.DUMBBELL, E.BENCH]
+    ranked = rank_substitutes(BENCH, POOL, user_equipment=gym, limit=len(POOL))
+    allowed = [c for c in POOL if is_substitute(BENCH, c, user_equipment=gym)]
+    assert sorted(names(ranked)) == sorted(names(allowed))
 
 
 def test_stretch_targets_only_get_stretch_substitutes() -> None:

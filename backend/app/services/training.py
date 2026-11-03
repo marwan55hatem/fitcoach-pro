@@ -55,6 +55,14 @@ class DoneWithoutRepsError(Exception):
     pass
 
 
+class NotASubstituteError(Exception):
+    pass
+
+
+class NothingToSwapError(Exception):
+    pass
+
+
 def _now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
@@ -238,6 +246,58 @@ def add_set(db: Session, user: User, session: WorkoutSession, data: AddSetIn) ->
     return row
 
 
+def swap_exercise(
+    db: Session,
+    user: User,
+    session: WorkoutSession,
+    program_exercise_id: uuid.UUID,
+    exercise_id: uuid.UUID,
+) -> None:
+    """Do another exercise for the sets of a planned slot that are not done yet.
+
+    Done sets stay with the exercise they were lifted on. The new exercise must be a
+    valid substitute for the planned one (same muscle, the user's equipment, no active
+    limitation against it); going back to the planned exercise is always allowed.
+    Only this workout changes, never the program.
+    """
+    if session.ended_at is not None:
+        raise SessionFinishedError
+    planned = db.get(ProgramExercise, program_exercise_id)
+    in_slot = [s for s in session.sets if s.program_exercise_id == program_exercise_id]
+    if planned is None or planned.user_id != user.id or not in_slot:
+        raise SetNotFoundError
+    new = exercise_svc.get_visible(db, user, exercise_id)
+    if new.id != planned.exercise_id and not exercise_svc.can_substitute(
+        db, user, exercise_svc.get_visible(db, user, planned.exercise_id), new
+    ):
+        raise NotASubstituteError
+    remaining = [s for s in in_slot if not s.done]
+    if not remaining:
+        raise NothingToSwapError
+
+    target = _dec(last_top_weight(logged_sets(db, user, exercise_ids=[new.id])))
+    moving = {s.id for s in remaining}
+    taken = [
+        s.set_number
+        for s in session.sets
+        if s.exercise_id == new.id and s.id not in moving
+    ]
+    # Renumber away from the unique (session, exercise, set) key before reassigning.
+    for row in remaining:
+        row.set_number = -row.set_number
+    db.flush()
+    for number, row in enumerate(
+        sorted(remaining, key=lambda s: -s.set_number), start=max(taken, default=0) + 1
+    ):
+        row.exercise_id = new.id
+        row.set_number = number
+        row.weight_kg = None
+        row.reps = None
+        row.rpe = None
+        row.target_weight_kg = target
+    db.commit()
+
+
 def finish_session(db: Session, user: User, session: WorkoutSession) -> set[uuid.UUID]:
     """Close the session and return the exercises where it set a personal best."""
     if session.ended_at is not None:
@@ -256,27 +316,38 @@ def finish_session(db: Session, user: User, session: WorkoutSession) -> set[uuid
 
 
 def ordered_sets(db: Session, session: WorkoutSession) -> list[SetLog]:
-    """Planned exercises in program order, then unplanned ones in the order added."""
+    """Planned exercises in program order, then unplanned ones in the order added.
+
+    A swapped slot lists the planned exercise's sets before the substitute's.
+    """
     planned_ids = {s.program_exercise_id for s in session.sets if s.program_exercise_id}
     order: dict[uuid.UUID, int] = {}
+    planned_exercise: dict[uuid.UUID, uuid.UUID] = {}
     if planned_ids:
         rows = db.execute(
-            sa.select(ProgramExercise.id, ProgramExercise.order).where(
-                ProgramExercise.id.in_(planned_ids)
-            )
+            sa.select(
+                ProgramExercise.id, ProgramExercise.order, ProgramExercise.exercise_id
+            ).where(ProgramExercise.id.in_(planned_ids))
         )
-        order = {key: value for key, value in rows}
+        for key_, value, exercise_id in rows:
+            order[key_] = value
+            planned_exercise[key_] = exercise_id
     unplanned = len(order) + 1
 
-    def key(s: SetLog) -> tuple[int, dt.datetime, str, int]:
+    def key(s: SetLog) -> tuple[int, dt.datetime, bool, str, int]:
         rank = (
             order.get(s.program_exercise_id, unplanned)
             if s.program_exercise_id
             else unplanned
         )
+        swapped = (
+            s.program_exercise_id is not None
+            and planned_exercise.get(s.program_exercise_id) != s.exercise_id
+        )
         return (
             rank,
             s.created_at if rank == unplanned else _EPOCH,
+            swapped,
             str(s.exercise_id),
             s.set_number,
         )
@@ -338,7 +409,10 @@ def exercise_names(db: Session, sessions: list[WorkoutSession]) -> dict[uuid.UUI
 def last_performance(
     db: Session, user: User, exercise_id: uuid.UUID
 ) -> tuple[dt.date | None, list[SetLog], list[LoggedSet]]:
-    """The most recent session's working sets for an exercise, plus the full history."""
+    """The most recent session's working sets for an exercise, plus the full history.
+
+    Only finished workouts count, so "last time" stays put while today's is in progress.
+    """
     rows = db.execute(
         sa.select(SetLog, WorkoutSession.performed_on)
         .join(WorkoutSession, SetLog.workout_session_id == WorkoutSession.id)
@@ -346,6 +420,7 @@ def last_performance(
             SetLog.user_id == user.id,
             SetLog.exercise_id == exercise_id,
             SetLog.done.is_(True),
+            WorkoutSession.ended_at.is_not(None),
         )
         .order_by(
             WorkoutSession.performed_on.desc(),

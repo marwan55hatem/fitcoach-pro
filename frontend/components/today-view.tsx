@@ -1,55 +1,46 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { Gauge, MessageCircle } from "lucide-react";
 
-import { ProgramView } from "@/components/program-view";
-import { Button } from "@/components/ui/button";
-import { api, ApiError } from "@/lib/api/client";
-import type { Program } from "@/lib/api/types";
+import { CheckinCard } from "@/components/today/checkin-card";
+import { FoodCard } from "@/components/today/food-card";
+import { NextWorkout } from "@/components/today/next-workout";
+import { WeightCard } from "@/components/today/weight-card";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { fill, useI18n } from "@/lib/i18n/provider";
-import { useLocalePath } from "@/lib/i18n/use-locale-path";
+
+/** A card for something that arrives in a later update, so the layout is already there. */
+function Upcoming({ icon: Icon, title, body }: { icon: typeof Gauge; title: string; body: string }) {
+  return (
+    <section className="flex gap-3 rounded-2xl border border-dashed border-border p-5">
+      <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+      <div className="grid gap-1">
+        <h2 className="font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{body}</p>
+      </div>
+    </section>
+  );
+}
 
 export function TodayView() {
   const { dict } = useI18n();
+  const t = dict.today;
   const { user } = useAuth();
-  const to = useLocalePath();
-  const program = useQuery({
-    queryKey: ["program", "current"],
-    queryFn: async () => {
-      try {
-        return await api<Program>("/programs/current");
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return null;
-        throw error;
-      }
-    },
-  });
 
   return (
-    <section className="grid gap-6">
-      <div>
-        <h1 className="text-4xl font-bold">
-          {user?.display_name ? fill(dict.today.greeting, { name: user.display_name }) : dict.today.title}
-        </h1>
+    <div className="grid gap-5">
+      <h1 className="text-4xl font-bold">
+        {user?.display_name ? fill(t.greeting, { name: user.display_name }) : t.title}
+      </h1>
+      <NextWorkout />
+      {/* Reserved for coach recommendations waiting for the user's approval. */}
+      <Upcoming icon={MessageCircle} title={t.coachTitle} body={t.coachEmpty} />
+      <div className="grid gap-5 md:grid-cols-2">
+        <WeightCard />
+        <FoodCard />
       </div>
-      {program.isPending && <p className="text-muted-foreground">{dict.common.loading}</p>}
-      {program.isError && <p className="text-destructive">{dict.common.errorGeneric}</p>}
-      {program.data === null && (
-        <div className="grid gap-3 rounded-2xl border border-border bg-card p-5">
-          <p>{dict.today.noProgram}</p>
-          <Button asChild className="w-fit">
-            <Link href={to("/onboarding")}>{dict.today.finishSetup}</Link>
-          </Button>
-        </div>
-      )}
-      {program.data && (
-        <div className="grid gap-3">
-          <h2 className="text-2xl font-semibold">{dict.today.programTitle}</h2>
-          <ProgramView program={program.data} />
-        </div>
-      )}
-    </section>
+      <CheckinCard />
+      <Upcoming icon={Gauge} title={t.readinessTitle} body={t.readinessBody} />
+    </div>
   );
 }

@@ -171,6 +171,24 @@ def score_substitute(target: CatalogExercise, candidate: CatalogExercise) -> int
     return score + min(len(shared), 2)
 
 
+def is_substitute(
+    target: CatalogExercise,
+    candidate: CatalogExercise,
+    *,
+    user_equipment: Iterable[Equipment | str],
+    excluded_ids: frozenset[str] = frozenset(),
+) -> bool:
+    """Whether `candidate` may replace `target`: same primary muscle, a compatible
+    category, usable with the user's equipment and not ruled out by a limitation."""
+    return (
+        candidate.id != target.id
+        and candidate.id not in excluded_ids
+        and candidate.muscle_primary == target.muscle_primary
+        and _category_compatible(target.category, candidate.category)
+        and is_available(candidate.required_equipment, user_equipment)
+    )
+
+
 def rank_substitutes(
     target: CatalogExercise,
     candidates: Sequence[CatalogExercise],
@@ -188,11 +206,7 @@ def rank_substitutes(
     eligible = [
         c
         for c in candidates
-        if c.id != target.id
-        and c.id not in excluded_ids
-        and c.muscle_primary == target.muscle_primary
-        and _category_compatible(target.category, c.category)
-        and is_available(c.required_equipment, equipment)
+        if is_substitute(target, c, user_equipment=equipment, excluded_ids=excluded_ids)
     ]
     eligible.sort(key=lambda c: (-score_substitute(target, c), c.name.lower()))
     return eligible[:limit]

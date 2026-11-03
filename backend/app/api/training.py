@@ -22,6 +22,7 @@ from app.schemas.training import (
     SetOut,
     SetPatchIn,
     StartSessionIn,
+    SwapIn,
     VolumeOut,
     WeekVolumeOut,
 )
@@ -180,6 +181,33 @@ def add_set(
     except exercise_svc.ExerciseNotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found") from None
     return _set_out(row, svc.exercise_names(db, [session]))
+
+
+@router.post("/{session_id}/swap", response_model=SessionOut)
+def swap(
+    session_id: uuid.UUID, body: SwapIn, db: DbSession, user: HealthUser
+) -> SessionOut:
+    """Swap the remaining sets of a planned exercise for a substitute (this workout only)."""
+    session = _owned_session(db, session_id, user)
+    try:
+        svc.swap_exercise(db, user, session, body.program_exercise_id, body.exercise_id)
+    except (svc.SetNotFoundError, exercise_svc.ExerciseNotFoundError):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found") from None
+    except svc.SessionFinishedError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="This workout is already finished."
+        ) from None
+    except svc.NothingToSwapError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Every set of this exercise is done.",
+        ) from None
+    except svc.NotASubstituteError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="That exercise can't replace this one with your equipment and injuries.",
+        ) from None
+    return _session_out(db, session)
 
 
 @router.post("/{session_id}/finish", response_model=FinishOut)

@@ -10,6 +10,7 @@ from app.models.enums import BodyArea, Equipment, Experience, Mechanic, Severity
 from app.rules.exercise_catalog import (
     STRENGTH_CATEGORIES,
     CatalogExercise,
+    is_substitute,
     rank_substitutes,
     slugify,
 )
@@ -180,6 +181,24 @@ def find_substitutes(
         limit=limit,
     )
     return [by_id[r.id] for r in ranked], equipment_used, areas_used
+
+
+def can_substitute(
+    db: Session, user: User, target: Exercise, candidate: Exercise
+) -> bool:
+    """Whether the user may do `candidate` instead of `target`, with their own
+    equipment and every active limitation applied."""
+    excluded = (
+        frozenset({str(candidate.id)})
+        if is_excluded(_facts(candidate), active_limitations(db, user))
+        else frozenset()
+    )
+    return is_substitute(
+        catalog_view(target),
+        catalog_view(candidate),
+        user_equipment=user_equipment(db, user),
+        excluded_ids=excluded,
+    )
 
 
 def strength_catalog(db: Session, user: User) -> dict[str, CatalogExercise]:

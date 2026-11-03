@@ -112,10 +112,10 @@ test("register, finish onboarding and accept a program, then delete the account"
   await expect(days).toHaveCount(4);
   await page.getByRole("button", { name: "Start this program" }).click();
 
-  // Today shows the accepted program.
+  // Today points at the first day of the accepted program.
   await expect(page).toHaveURL(/\/en\/today$/);
   await expect(page.getByRole("heading", { name: "Hi Sam" })).toBeVisible();
-  await expect(page.getByRole("list", { name: "Your program" }).locator(":scope > li")).toHaveCount(4);
+  await expect(page.getByRole("region", { name: "Next workout" })).toBeVisible();
 
   // A reload keeps the session (refresh cookie) without storing tokens in the page.
   await page.reload();
