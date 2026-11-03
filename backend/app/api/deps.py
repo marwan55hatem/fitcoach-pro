@@ -1,3 +1,4 @@
+import datetime as dt
 import uuid
 from collections.abc import Callable
 from typing import Annotated, TypeVar
@@ -121,6 +122,21 @@ def require_diet_targets(
             },
         )
     return user
+
+
+HealthUser = Annotated[User, Depends(require_consent(ConsentType.HEALTH_DATA))]
+PlanUser = Annotated[User, Depends(require_plan_access)]
+DietUser = Annotated[User, Depends(require_diet_targets)]
+
+
+def not_in_future(day: dt.date, db: Session, user: User) -> dt.date:
+    """422 for a date after today in the user's timezone."""
+    if day > onboarding.user_today(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The date cannot be in the future.",
+        )
+    return day
 
 
 ModelT = TypeVar("ModelT")

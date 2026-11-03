@@ -97,6 +97,12 @@ It confirms your key can use the configured models, then tests strict JSON, a to
 ### Training programs
 `POST /programs/generate` creates a draft: the AI proposes, `app/rules/program_validator.py` checks it (exercises, equipment, injuries, weekly volume, session length, order), and invalid answers get one retry before falling back to a rules-only template. `{"use_ai": false}` skips the AI entirely. Nothing changes until `POST /programs/{id}/accept`, which validates again and archives the previous program. See it with `GET /programs/{id}/preview` and `GET /programs/current`.
 
+### Workouts, nutrition and body tracking
+All need the `health_data` consent. Dates default to today in the user's timezone and can't be in the future.
+- **Workouts:** `POST /sessions` with a `program_day_id` from the active program creates the planned sets, with target reps and last time's weight. Log each set with `PATCH /sessions/{id}/sets/{set_id}`, add extra sets with `POST /sessions/{id}/sets`, then call `POST /sessions/{id}/finish`, which reports new personal bests. Only one workout can be open at a time. Also available: `GET /sessions`, `GET /sessions/open`, `DELETE /sessions/{id}`, `GET /exercises/{id}/last` (last time and personal best), and `GET /stats/volume?weeks=4` (completed sets per muscle per week).
+- **Nutrition** (needs plan access): `GET /nutrition/targets` comes from `app/rules/nutrition.py`, using Mifflin-St Jeor or the latest *confirmed* InBody BMR, the activity factor, the goal and approved adjustments in `nutrition_settings`. `GET /nutrition/day?date=` totals only confirmed meals. Also available: `POST/PATCH/DELETE /nutrition/meals` and `PUT /nutrition/days/{date}/water`. Calorie and macro targets are never returned when the health screening withholds them.
+- **Body:** `POST /weight` keeps one weight per day, and `GET /weight` adds a 7-day moving average and the weekly change. `POST /checkins` (sleep, soreness, stress, energy, motivation) keeps one check-in per day, listed by `GET /checkins`.
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

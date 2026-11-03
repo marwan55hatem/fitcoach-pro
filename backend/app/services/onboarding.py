@@ -56,11 +56,20 @@ def _today(timezone: str) -> dt.date:
     return dt.datetime.now(ZoneInfo(timezone)).date()
 
 
+DEFAULT_TIMEZONE = "Africa/Cairo"
+
+
 # --- profile --------------------------------------------------------------------------
 
 
 def get_profile(db: Session, user_id: uuid.UUID) -> Profile | None:
     return db.scalar(sa.select(Profile).where(Profile.user_id == user_id))
+
+
+def user_today(db: Session, user: User) -> dt.date:
+    """Today's date where the user lives (their profile timezone)."""
+    profile = get_profile(db, user.id)
+    return _today(profile.timezone if profile else DEFAULT_TIMEZONE)
 
 
 def latest_weight(db: Session, user_id: uuid.UUID) -> WeightLog | None:

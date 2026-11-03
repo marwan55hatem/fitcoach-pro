@@ -111,6 +111,7 @@ class MealSlot(enum.StrEnum):
     SNACK = "snack"
     PRE_WORKOUT = "pre_workout"
     POST_WORKOUT = "post_workout"
+    BED = "bed"
 
 
 class MealSource(enum.StrEnum):

@@ -18,34 +18,16 @@ from app.db.session import get_db
 from app.main import create_app
 from app.models import AuditLog, Exercise, Limitation, Profile, Program, ProgramDay
 from app.models.enums import BodyArea, ProgramStatus, Severity
-from app.rules.exercise_catalog import slugify
 from app.services.storage import Storage, get_storage
 from tests.fakes.ai import FakeProvider
 from tests.helpers import Account, delete_me, grant_consents, register_and_login
-from tests.program_fixtures import ROWS
+from tests.program_fixtures import add_library
 from tests.test_onboarding import profile_payload, screen
 
 
 @pytest.fixture
 def library(db: Session) -> dict[str, Exercise]:
-    rows = {}
-    for name, equipment, primary, secondary, mechanic, level in ROWS:
-        row = Exercise(
-            name=name,
-            slug=f"t-{slugify(name)}",
-            muscle_primary=primary,
-            muscles_secondary=list(secondary),
-            equipment=equipment.value,
-            level=level,
-            mechanic=mechanic,
-            category="strength",
-            image_keys=[],
-            instructions=[],
-        )
-        db.add(row)
-        rows[name] = row
-    db.flush()
-    return rows
+    return add_library(db)
 
 
 @pytest.fixture

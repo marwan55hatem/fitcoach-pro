@@ -1,5 +1,8 @@
 """A realistic small catalog covering every template slot, for program tests."""
 
+from sqlalchemy.orm import Session
+
+from app.models import Exercise
 from app.models.enums import Equipment, Experience, Mechanic
 from app.rules.exercise_catalog import CatalogExercise, slugify
 
@@ -89,3 +92,25 @@ def catalog() -> dict[str, CatalogExercise]:
             category="strength",
         )
     return items
+
+
+def add_library(db: Session) -> dict[str, Exercise]:
+    """Insert ROWS as catalog exercises (no images), keyed by name."""
+    rows = {}
+    for name, equipment, primary, secondary, mechanic, level in ROWS:
+        row = Exercise(
+            name=name,
+            slug=f"t-{slugify(name)}",
+            muscle_primary=primary,
+            muscles_secondary=list(secondary),
+            equipment=equipment.value,
+            level=level,
+            mechanic=mechanic,
+            category="strength",
+            image_keys=[],
+            instructions=[],
+        )
+        db.add(row)
+        rows[name] = row
+    db.flush()
+    return rows

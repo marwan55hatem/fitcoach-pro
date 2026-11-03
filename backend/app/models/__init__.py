@@ -5,7 +5,7 @@ from app.models.body import Checkin, InbodyScan, ProgressPhoto, WeightLog
 from app.models.coach import CoachNote, Conversation, Message, Recommendation
 from app.models.files import StoredFile
 from app.models.notifications import NotificationChannel, NotificationLog, Reminder
-from app.models.nutrition import MealLog, MealOption, WaterLog
+from app.models.nutrition import MealLog, MealOption, NutritionSettings, WaterLog
 from app.models.system import AiUsage, AuditLog
 from app.models.training import (
     Exercise,
@@ -41,6 +41,7 @@ __all__ = [
     "Message",
     "NotificationChannel",
     "NotificationLog",
+    "NutritionSettings",
     "Profile",
     "Program",
     "ProgramDay",

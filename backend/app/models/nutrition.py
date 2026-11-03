@@ -76,3 +76,24 @@ class WaterLog(OwnedBase, Base):
         sa.Index("ix_water_logs_user_id_date", "user_id", "date"),
         sa.CheckConstraint("ml > 0", name="ml_positive"),
     )
+
+
+class NutritionSettings(OwnedBase, Base):
+    """Per-user changes to the computed targets. Only approved adjustments write here."""
+
+    __tablename__ = "nutrition_settings"
+
+    calorie_adjustment_kcal: Mapped[int] = mapped_column(server_default=sa.text("0"))
+    protein_g_per_kg: Mapped[Decimal | None] = mapped_column(sa.Numeric(3, 2))
+
+    __table_args__ = (
+        sa.UniqueConstraint("user_id"),
+        sa.CheckConstraint(
+            "calorie_adjustment_kcal BETWEEN -1000 AND 1000",
+            name="calorie_adjustment_range",
+        ),
+        sa.CheckConstraint(
+            "protein_g_per_kg IS NULL OR protein_g_per_kg BETWEEN 1 AND 3",
+            name="protein_range",
+        ),
+    )

@@ -153,6 +153,13 @@ class WorkoutSession(OwnedBase, Base):
 
     __table_args__ = (
         sa.Index("ix_workout_sessions_user_id_performed_on", "user_id", "performed_on"),
+        # At most one unfinished session per user, so a double tap cannot start two.
+        sa.Index(
+            "uq_workout_sessions_one_open_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=sa.text("ended_at IS NULL"),
+        ),
         sa.CheckConstraint(
             "ended_at IS NULL OR started_at IS NULL OR ended_at >= started_at",
             name="ended_after_started",
@@ -173,10 +180,15 @@ class SetLog(OwnedBase, Base):
         ForeignKey("program_exercises.id", ondelete="SET NULL")
     )
     set_number: Mapped[int]
-    reps: Mapped[int]
+    # Planned sets are created when a session starts; reps stay empty until logged.
+    reps: Mapped[int | None]
     weight_kg: Mapped[Decimal | None] = mapped_column(sa.Numeric(6, 2))
     rpe: Mapped[Decimal | None] = mapped_column(sa.Numeric(3, 1))
     is_warmup: Mapped[bool] = mapped_column(server_default=sa.false())
+    done: Mapped[bool] = mapped_column(server_default=sa.false())
+    target_reps_min: Mapped[int | None]
+    target_reps_max: Mapped[int | None]
+    target_weight_kg: Mapped[Decimal | None] = mapped_column(sa.Numeric(6, 2))
 
     session: Mapped[WorkoutSession] = relationship(back_populates="sets")
 
@@ -188,4 +200,14 @@ class SetLog(OwnedBase, Base):
             "weight_kg IS NULL OR weight_kg >= 0", name="weight_non_negative"
         ),
         sa.CheckConstraint("rpe IS NULL OR rpe BETWEEN 1 AND 10", name="rpe_range"),
+        sa.CheckConstraint("NOT done OR reps IS NOT NULL", name="done_has_reps"),
+        sa.CheckConstraint(
+            "target_reps_min IS NULL OR (target_reps_min >= 1 AND "
+            "(target_reps_max IS NULL OR target_reps_max >= target_reps_min))",
+            name="target_reps_range",
+        ),
+        sa.CheckConstraint(
+            "target_weight_kg IS NULL OR target_weight_kg >= 0",
+            name="target_weight_non_negative",
+        ),
     )

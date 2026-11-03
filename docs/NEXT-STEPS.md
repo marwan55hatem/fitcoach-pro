@@ -51,6 +51,8 @@ The plan is sound, and its three golden rules (numbers in code, AI drafts you co
 
 ## 3. Decisions for you (answer before the step noted)
 
+**Decided (2026-11-03):** A: 18+ only. B: **Egyptian Arabic with RTL**, alongside English. C: Groq by default, a model per task. D: no personal training or food plan, so the built-in 4-day split and the rules-based nutrition targets are used. E: **Railway** for hosting.
+
 - **A. Under-18 users** (before step 4): keep the plan's "restricted mode", or **require 18+ at registration** (my recommendation, simpler and safer). The step 4 prompt below follows the recommendation; change one line if you disagree.
 - **B. Arabic UI** (before step 12): if you want Egyptian Arabic and RTL at all, add the i18n scaffold now (cheap) rather than retrofitting. Step 12 includes it; delete that line if English only.
 - **C. Which model for what** (before AI foundation): suggested: best model for the coach and program generation, a cheaper model for vision extraction and a cheap/fast one for red-flag classification. Costs differ a lot; the foundation step makes this a setting per task.
