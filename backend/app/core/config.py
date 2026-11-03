@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     rate_limit_auth: str = "10/minute"
     rate_limit_ai: str = "10/minute"
+    rate_limit_upload: str = "30/minute"
     # Peers allowed to say who the real client is (X-Forwarded-For): the Next.js server.
     trusted_proxy_ips: list[str] = Field(default_factory=lambda: ["127.0.0.1", "::1"])
 

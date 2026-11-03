@@ -112,6 +112,14 @@ All need the `health_data` consent. Dates default to today in the user's timezon
 - **Nutrition** (needs plan access): `GET /nutrition/targets` comes from `app/rules/nutrition.py`, using Mifflin-St Jeor or the latest *confirmed* InBody BMR, the activity factor, the goal and approved adjustments in `nutrition_settings`. `GET /nutrition/day?date=` totals only confirmed meals. Also available: `POST/PATCH/DELETE /nutrition/meals` and `PUT /nutrition/days/{date}/water`. Calorie and macro targets are never returned when the health screening withholds them.
 - **Body:** `POST /weight` keeps one weight per day, and `GET /weight` adds a 7-day moving average and the weekly change. `POST /checkins` (sleep, soreness, stress, energy, motivation) keeps one check-in per day, listed by `GET /checkins`.
 
+### Photos and files
+`POST /files?kind=inbody|body_photo|food|chat` takes one photo as the raw request body. The type is read from the file's content, never its name or Content-Type: JPEG, PNG, WebP or HEIC, plus PDF for InBody scans (the first page is kept). Photos are up to 12 MB and PDFs up to 10 MB, and the limit is enforced while the upload is read. Each photo is turned upright and re-encoded as a JPEG of at most 2000 px with no metadata (GPS and camera tags are removed), plus a 400 px thumbnail. Both are stored privately under `users/<id>/<kind>/`.
+- **Consent:** InBody and food photos need `health_data`, body photos need `body_photos`, and chat images need `ai_processing`. Uploads are rate limited (`RATE_LIMIT_UPLOAD`, default 30 a minute).
+- **Viewing:** `GET /files/{id}/url` returns signed links to the photo and its thumbnail that expire after 5 minutes. The bucket itself is never public.
+- **Deleting:** `DELETE /files/{id}` removes both objects. Meals and scans that used the photo are kept without it, and a body-photo entry goes with its photo. If storage fails mid-way, the file is already hidden and `purge_deleted` finishes the job.
+- **Your data:** the export (`GET /me/export`) includes the originals, not the thumbnails. Deleting the account removes both.
+- **AI:** `app/services/files.py:load_for_ai` gives a feature a size-limited copy of a photo for an AI call. It refuses body photos, which never go to an AI provider.
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

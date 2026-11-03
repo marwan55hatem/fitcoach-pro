@@ -14,11 +14,15 @@ def delete_account(db: Session, storage: Storage, user: User) -> None:
     entry carries only the pseudonymous user id and a count, never personal content.
     """
     user_id = user.id
-    keys = db.scalars(
-        sa.select(StoredFile.storage_key).where(StoredFile.user_id == user_id)
+    files = db.execute(
+        sa.select(StoredFile.storage_key, StoredFile.thumbnail_key).where(
+            StoredFile.user_id == user_id
+        )
     ).all()
-    for key in keys:
+    for key, thumbnail_key in files:
         storage.delete(key)
+        if thumbnail_key:
+            storage.delete(thumbnail_key)
     swept = storage.delete_prefix(
         user_prefix(user_id)
     )  # also catches unregistered objects
@@ -32,6 +36,6 @@ def delete_account(db: Session, storage: Storage, user: User) -> None:
         None,
         entity_type="user",
         entity_id=user_id,
-        meta={"files_deleted": len(keys), "orphans_swept": swept},
+        meta={"files_deleted": len(files), "orphans_swept": swept},
     )
     db.commit()

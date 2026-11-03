@@ -9,6 +9,8 @@ pyjwt
 pwdlib[argon2]
 python-multipart
 pillow
+pillow-heif
+pypdfium2
 boto3
 anthropic
 apscheduler

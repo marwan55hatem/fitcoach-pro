@@ -17,6 +17,8 @@ class StoredFile(OwnedBase, Base):
     __tablename__ = "files"
 
     storage_key: Mapped[str] = mapped_column(sa.String(512), unique=True)
+    # A small preview (400 px) next to the original; files from before it may lack one.
+    thumbnail_key: Mapped[str | None] = mapped_column(sa.String(512), unique=True)
     content_type: Mapped[str] = mapped_column(sa.String(100))
     size_bytes: Mapped[int] = mapped_column(sa.BigInteger)
     sha256: Mapped[str] = mapped_column(sa.String(64))
