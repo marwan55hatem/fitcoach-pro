@@ -78,9 +78,13 @@ test("log a full workout with a swap, keeping sets logged while offline", async 
   await expect(page.getByRole("status").filter({ hasText: "not saved yet" })).toBeVisible();
   await context.setOffline(false);
   await expect(page.getByRole("status").filter({ hasText: "not saved yet" })).toBeHidden();
-  let open = await apiCall<Session>(request, user, "GET", "/sessions/open");
-  const saved = open.sets.filter((s) => s.exercise_name === substitute && s.done);
-  expect(saved.map((s) => [s.weight_kg, s.reps])).toEqual([[22.5, 12]]);
+  // Back online, the queued set reaches the API (the notice hides as the retry starts).
+  await expect
+    .poll(async () => {
+      const now = await apiCall<Session>(request, user!, "GET", "/sessions/open");
+      return now.sets.filter((s) => s.exercise_name === substitute && s.done).map((s) => [s.weight_kg, s.reps]);
+    })
+    .toEqual([[22.5, 12]]);
 
   // Every remaining set of every exercise.
   for (let left = firstSets - 1; left > 0; left--) {
@@ -93,7 +97,7 @@ test("log a full workout with a swap, keeping sets logged while offline", async 
     for (let s = 1; s <= sets; s++) await logSet(page, card, s, "40", "10");
   }
 
-  open = await apiCall<Session>(request, user, "GET", "/sessions/open");
+  const open = await apiCall<Session>(request, user, "GET", "/sessions/open");
   expect(open.sets.every((s) => s.done)).toBeTruthy();
 
   await page.getByRole("button", { name: "Finish workout" }).click();

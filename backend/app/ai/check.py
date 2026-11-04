@@ -188,6 +188,9 @@ def _run(settings: Settings) -> int:
         print(f"  {task.value:<7} model: {model}")
     print(f"  daily token budget per user: {settings.ai_daily_token_budget}")
 
+    if settings.ai_provider == "demo":
+        print("\nThe demo provider is offline and fixed: there is nothing to check.")
+        return 0
     key = api_key_for(settings)
     if not key:
         variable = KEY_VARIABLES[settings.ai_provider]

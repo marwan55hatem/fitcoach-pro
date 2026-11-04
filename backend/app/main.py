@@ -21,6 +21,7 @@ from app.api import (
     nutrition,
     onboarding,
     programs,
+    progress,
     training,
 )
 from app.api.errors import PoolTimeoutError, ai_error_handler, db_busy_handler
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(files.router)
     app.include_router(inbody.router)
     app.include_router(food.router)
+    app.include_router(progress.router)
     return app
 
 

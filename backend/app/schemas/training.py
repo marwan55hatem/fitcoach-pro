@@ -110,6 +110,12 @@ class ExerciseLastOut(BaseModel):
     personal_best: PersonalBestOut | None
 
 
+class RecordOut(PersonalBestOut):
+    exercise_id: uuid.UUID
+    name: str
+    date: dt.date  # when the latest of these bests was set
+
+
 class WeekVolumeOut(BaseModel):
     week_start: dt.date
     sets_by_muscle: dict[str, float]

@@ -321,21 +321,26 @@ def test_an_ai_failure_saves_nothing(
 def test_drafts_count_only_once_confirmed(
     client: TestClient, fake: FakeProvider, user: Account
 ) -> None:
-    draft = drafted(client, fake, user)
-    totals = day(client, user)["totals"]
+    draft = drafted(client, fake, user, estimate(questions=["Small or large plate?"]))
+    shown = day(client, user)
+    totals = shown["totals"]
     assert (totals["kcal"], totals["meals_counted"], totals["drafts_excluded"]) == (
         0,
         0,
         1,
     )
+    # A reloaded draft still shows the AI's questions.
+    assert shown["meals"][0]["questions"] == ["Small or large plate?"]
 
     res = confirm(client, user, draft)
     assert res.status_code == 200, res.text
     saved = res.json()
     assert saved["confirmed"] is True and saved["user_edited"] is False
-    totals = day(client, user)["totals"]
+    shown = day(client, user)
+    totals = shown["totals"]
     assert (totals["kcal"], totals["kcal_min"], totals["kcal_max"]) == (775, 700, 850)
     assert totals["meals_counted"] == 1 and totals["protein_g"] == 22
+    assert shown["meals"][0]["questions"] == []  # only drafts carry them
 
 
 def test_editing_before_confirming(

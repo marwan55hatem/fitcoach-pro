@@ -66,16 +66,8 @@ class FoodLogIn(BaseModel):
         return self
 
 
-class FoodFlagOut(BaseModel):
-    item: int | None  # index in items, or null for the whole meal
-    field: str
-    code: str  # negative | range_order | too_large | macro_mismatch
-    message: str
-
-
 class FoodDraftOut(MealOut):
-    questions: list[str]  # what would make the estimate better
-    flags: list[FoodFlagOut]  # numbers to check before confirming
+    """An unconfirmed estimate; its questions and flags are always filled in."""
 
 
 class PersonalFoodIn(BaseModel):

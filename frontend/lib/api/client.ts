@@ -1,6 +1,7 @@
 "use client";
 
 import { getAccessToken, refreshAccessToken } from "./session";
+import type { FileKind, StoredFile } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -33,16 +34,23 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
-type Options = { method?: string; body?: unknown; signal?: AbortSignal };
+type Options = { method?: string; body?: unknown; file?: Blob; signal?: AbortSignal };
 
 async function send(path: string, opts: Options, token: string | null): Promise<Response> {
   const headers: Record<string, string> = { accept: "application/json" };
-  if (opts.body !== undefined) headers["content-type"] = "application/json";
+  let body: BodyInit | undefined;
+  if (opts.file !== undefined) {
+    headers["content-type"] = "application/octet-stream"; // the API reads the type from the bytes
+    body = opts.file;
+  } else if (opts.body !== undefined) {
+    headers["content-type"] = "application/json";
+    body = JSON.stringify(opts.body);
+  }
   if (token) headers.authorization = `Bearer ${token}`;
   return fetch(`/api/backend${path}`, {
     method: opts.method ?? "GET",
     headers,
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    body,
     signal: opts.signal,
     cache: "no-store",
   });
@@ -76,4 +84,14 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
     throw new ApiError(res.status, detail);
   }
   return body as T;
+}
+
+export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+
+/** Upload one photo (or an InBody PDF) to private storage. */
+export function uploadFile(kind: FileKind, file: Blob): Promise<StoredFile> {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return Promise.reject(new ApiError(413, { code: "too_large", message: "File too large" }));
+  }
+  return api<StoredFile>(`/files?kind=${kind}`, { method: "POST", file });
 }

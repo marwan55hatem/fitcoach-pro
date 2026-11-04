@@ -10,6 +10,7 @@ from app.models import MealLog
 from app.rules.nutrition import NutritionTargets, remaining
 from app.schemas.nutrition import (
     DayOut,
+    FoodFlagOut,
     MealIn,
     MealOut,
     MealPatchIn,
@@ -46,6 +47,12 @@ def meal_out(meal: MealLog) -> MealOut:
         file_id=meal.file_id,
         confirmed=meal.confirmed,
         user_edited=meal.user_edited,
+        questions=[]
+        if meal.confirmed
+        else list((meal.ai_raw or {}).get("questions", [])),
+        flags=[]
+        if meal.confirmed
+        else [FoodFlagOut(**f) for f in (meal.ai_raw or {}).get("flags", [])],
     )
 
 

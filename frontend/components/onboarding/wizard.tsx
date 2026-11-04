@@ -230,7 +230,7 @@ export function OnboardingWizard() {
         {step === "screening" && (
           <ScreeningStep sex={draft.sex} current={screening} onScreened={setScreening} onDone={forward} />
         )}
-        {step === "extras" && <ExtrasStep onDone={forward} />}
+        {step === "extras" && <ExtrasStep consents={consents} onDone={forward} />}
         {step === "summary" && (
           <SummaryStep
             useAi={consents.ai_processing}

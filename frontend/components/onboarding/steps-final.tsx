@@ -5,27 +5,69 @@ import { useState } from "react";
 
 import { FormError } from "@/components/field";
 import { ProgramView } from "@/components/program-view";
+import { InbodyReview } from "@/components/progress/inbody-review";
+import { InbodyUpload } from "@/components/progress/inbody-upload";
+import { PhotoCapture } from "@/components/progress/photos-section";
 import { Button } from "@/components/ui/button";
 import { api, ApiError } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
-import type { GeneratedProgram } from "@/lib/api/types";
+import { type ConsentType, type GeneratedProgram, type InbodyScan, PHOTO_VIEWS } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/provider";
 
 import { StepFrame } from "./step-frame";
 
-/** Placeholder for the InBody and body-photo steps, which arrive with their backends. */
-export function ExtrasStep({ onDone }: { onDone: () => void }) {
+/** Optional extras: an InBody scan (read by the AI, checked by the user) and starting photos. */
+export function ExtrasStep({
+  consents,
+  onDone,
+}: {
+  consents: Record<ConsentType, boolean>;
+  onDone: () => void;
+}) {
   const { dict } = useI18n();
   const t = dict.onboarding.extras;
+  const [scans, setScans] = useState<InbodyScan[]>([]);
+  const [confirmed, setConfirmed] = useState<string[]>([]);
   return (
-    <StepFrame title={t.title} action={dict.common.skip} onSubmit={onDone}>
-      <div className="flex gap-4 rounded-2xl border border-dashed border-border p-5 text-muted-foreground">
-        <span className="flex gap-2" aria-hidden>
-          <ScanLine className="size-6" />
-          <Camera className="size-6" />
-        </span>
-        <p>{t.body}</p>
-      </div>
+    <StepFrame title={t.title} lead={t.lead} action={t.continue} onSubmit={onDone}>
+      <section className="grid gap-3 rounded-2xl border border-border bg-card p-5" aria-labelledby="extras-inbody">
+        <h2 id="extras-inbody" className="flex items-center gap-2 text-xl font-semibold">
+          <ScanLine className="size-5 text-primary" aria-hidden />
+          {t.inbodyTitle}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t.inbodyBody}</p>
+        <InbodyUpload onDraft={(scan) => setScans((list) => [scan, ...list])} />
+        {scans
+          .filter((scan) => !confirmed.includes(scan.id))
+          .map((scan) => (
+            <InbodyReview
+              key={scan.id}
+              scan={scan}
+              onConfirmed={() => setConfirmed((ids) => [...ids, scan.id])}
+            />
+          ))}
+        {confirmed.length > 0 && (
+          <p className="text-sm text-success" role="status">
+            {dict.progress.confirmed}
+          </p>
+        )}
+      </section>
+      <section className="grid gap-3 rounded-2xl border border-border bg-card p-5" aria-labelledby="extras-photos">
+        <h2 id="extras-photos" className="flex items-center gap-2 text-xl font-semibold">
+          <Camera className="size-5 text-primary" aria-hidden />
+          {t.photosTitle}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t.photosBody}</p>
+        {consents.body_photos ? (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {PHOTO_VIEWS.map((view) => (
+              <PhotoCapture key={view} view={view} />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">{t.photosOff}</p>
+        )}
+      </section>
     </StepFrame>
   );
 }

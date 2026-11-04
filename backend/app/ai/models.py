@@ -23,6 +23,8 @@ DEFAULT_MODELS: dict[str, dict[Task, str]] = {
         Task.VISION: "gpt-6.1-sol",
         Task.FAST: "gpt-6-luna",  # cheapest tier, high volume
     },
+    # Offline stand-in (app/ai/providers/demo.py): no model, no cost.
+    "demo": {Task.MAIN: "demo", Task.VISION: "demo", Task.FAST: "demo"},
 }
 
 
@@ -44,6 +46,7 @@ DEFAULT_PRICES: dict[str, ModelPrice] = {
     "gpt-6.1-sol": ModelPrice(2.00, 0.10, 10.00),
     "gpt-6-sol": ModelPrice(2.00, 0.20, 10.00),
     "gpt-6-luna": ModelPrice(0.10, 0.01, 0.50),
+    "demo": ModelPrice(0.0, 0.0, 0.0),  # the offline stand-in costs nothing
 }
 
 _MILLION = Decimal(1_000_000)

@@ -39,6 +39,13 @@ class MealPatchIn(BaseModel):
     fat_g: float | None = Field(default=None, ge=0, le=500)
 
 
+class FoodFlagOut(BaseModel):
+    item: int | None  # index in items, or null for the whole meal
+    field: str
+    code: str  # negative | range_order | too_large | macro_mismatch
+    message: str
+
+
 class MealOut(BaseModel):
     id: uuid.UUID
     date: dt.date
@@ -56,6 +63,9 @@ class MealOut(BaseModel):
     file_id: uuid.UUID | None  # the meal's photo, if any
     confirmed: bool  # drafts (AI-read meals) do not count until confirmed
     user_edited: bool
+    # For an unconfirmed AI estimate: what would make it better, and numbers to check.
+    questions: list[str] = Field(default_factory=list)
+    flags: list[FoodFlagOut] = Field(default_factory=list)
 
 
 class WaterIn(BaseModel):

@@ -43,7 +43,8 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
 
     # AI: every model call goes through app/ai/client.py (see CLAUDE.md).
-    ai_provider: Literal["groq", "openai"] = "groq"
+    # "demo" is an offline stand-in for local demos and browser tests (development only).
+    ai_provider: Literal["groq", "openai", "demo"] = "groq"
     groq_api_key: str = ""
     openai_api_key: str = ""
     anthropic_api_key: str = ""  # reserved for a future Claude provider adapter
@@ -79,6 +80,14 @@ class Settings(BaseSettings):
             self.jwt_secret in _WEAK_SECRETS or len(self.jwt_secret) < 32
         ):
             raise ValueError("JWT_SECRET must be a random string of 32+ characters")
+        return self
+
+    @model_validator(mode="after")
+    def _demo_ai_only_in_development(self) -> "Settings":
+        if self.ai_provider == "demo" and self.app_env != "development":
+            raise ValueError(
+                "AI_PROVIDER=demo is only allowed with APP_ENV=development"
+            )
         return self
 
 

@@ -38,7 +38,11 @@ export function apiCall<T>(
 }
 
 /** A user who finished onboarding (fake data, rules-only program, no AI) straight via the API. */
-export async function createReadyUser(request: APIRequestContext, name = "Sam"): Promise<TestUser> {
+export async function createReadyUser(
+  request: APIRequestContext,
+  name = "Sam",
+  extraConsents: ("ai_processing" | "body_photos")[] = [],
+): Promise<TestUser> {
   const email = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
   await call(request, "POST", "/auth/register", null, { email, password: PASSWORD, display_name: name });
   const { access_token: token } = (await call(request, "POST", "/auth/login", null, {
@@ -46,7 +50,8 @@ export async function createReadyUser(request: APIRequestContext, name = "Sam"):
     password: PASSWORD,
   })) as { access_token: string };
   const user = { email, token };
-  await apiCall(request, user, "PUT", "/consents", { consents: { health_data: true } });
+  const consents = Object.fromEntries(["health_data", ...extraConsents].map((c) => [c, true]));
+  await apiCall(request, user, "PUT", "/consents", { consents });
   await apiCall(request, user, "PUT", "/onboarding/profile", {
     birth_date: adultBirthDate(),
     sex: "male",

@@ -253,6 +253,33 @@ def test_last_ignores_the_workout_in_progress(client, user, program) -> None:
     assert last["personal_best"]["heaviest"]["weight_kg"] == 80
 
 
+def test_records_list_bests_per_exercise(client, user, program) -> None:
+    assert client.get("/stats/records", headers=user.headers).json() == []
+    day = program["days"][0]
+    first, second = (e["exercise_id"] for e in day["exercises"][:2])
+    one = started(client, user, day)
+    do_sets(client, user, one, first, 80, 8)
+    do_sets(client, user, one, second, 20, 12)
+    finish(client, user, one)
+    two = started(client, user, day)
+    do_sets(client, user, two, first, 85, 6)  # in progress: not a record yet
+
+    records = client.get("/stats/records", headers=user.headers).json()
+    by_id = {r["exercise_id"]: r for r in records}
+    assert set(by_id) == {first, second}
+    assert by_id[first]["name"] == day["exercises"][0]["name"]
+    assert by_id[first]["heaviest"]["weight_kg"] == 80
+    assert by_id[first]["best_e1rm"]["estimated_1rm_kg"] == pytest.approx(
+        101.3, abs=0.1
+    )
+    assert by_id[second]["most_reps"] == 12
+
+    finish(client, user, two)
+    records = client.get("/stats/records", headers=user.headers).json()
+    by_id = {r["exercise_id"]: r for r in records}
+    assert by_id[first]["heaviest"]["weight_kg"] == 85  # counts once finished
+
+
 def test_last_for_a_never_done_exercise(client, user, library) -> None:
     ex = library["Barbell Curl"]
     res = client.get(f"/exercises/{ex.id}/last", headers=user.headers)

@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * End-to-end tests against the real API (port 8001, your local database) and the web
  * app (port 3001). Run `docker compose up -d` and seed the exercise library first.
- * Running servers are reused; otherwise both are started here.
+ * The API is always started here with the demo AI; a running web server is reused.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -24,10 +24,12 @@ export default defineConfig({
       command: "..\\backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --port 8001",
       cwd: "../backend",
       url: "http://localhost:8001/health",
-      reuseExistingServer: true,
+      // Always a fresh API for the tests: the offline demo AI (never a real model or a
+      // paid call) and a higher sign-in limit, since each test creates an account.
+      // Stop your own API on port 8001 before running the tests.
+      reuseExistingServer: false,
       timeout: 60_000,
-      // Each test signs up and logs in; the real limit (10 a minute per IP) would trip.
-      env: { RATE_LIMIT_AUTH: "1000/minute" },
+      env: { RATE_LIMIT_AUTH: "1000/minute", AI_PROVIDER: "demo", APP_ENV: "development" },
     },
     {
       command: "npm run dev",

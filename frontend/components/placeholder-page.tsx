@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/lib/i18n/provider";
 
-type Section = "food" | "progress" | "coach";
+type Section = "coach";
 
 export function PlaceholderPage({ section }: { section: Section }) {
   const { dict } = useI18n();

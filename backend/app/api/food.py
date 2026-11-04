@@ -11,7 +11,6 @@ from app.models.enums import ConsentType
 from app.schemas.food import (
     EstimateIn,
     FoodDraftOut,
-    FoodFlagOut,
     FoodLogIn,
     PersonalFoodIn,
     PersonalFoodOut,
@@ -30,14 +29,7 @@ AiConsent = Annotated[User, Depends(require_consent(ConsentType.AI_PROCESSING))]
 
 
 def _draft_out(meal: MealLog) -> FoodDraftOut:
-    return FoodDraftOut(
-        **meal_out(meal).model_dump(),
-        questions=svc.questions_of(meal),
-        flags=[
-            FoodFlagOut(item=index, field=f.field, code=f.code, message=f.message)
-            for index, f in svc.flags_of(meal)
-        ],
-    )
+    return FoodDraftOut(**meal_out(meal).model_dump())
 
 
 def _not_found() -> HTTPException:

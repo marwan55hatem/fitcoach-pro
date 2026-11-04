@@ -101,8 +101,11 @@ test("register, finish onboarding and accept a program, then delete the account"
   await expect(page.getByRole("heading", { name: "You're good to go" })).toBeVisible();
   await next(page);
 
-  // 8 Scans and photos: a skippable placeholder for now.
-  await page.getByRole("button", { name: "Skip for now" }).click();
+  // 8 Scans and photos: optional. Body photos are off, so that part explains why.
+  await expect(page.getByRole("heading", { name: "InBody scan and body photos" })).toBeVisible();
+  await expect(page.getByText("You turned off body photos in the first step")).toBeVisible();
+  await expect(page.getByText("Reading a scan needs AI coaching")).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
 
   // 9 Program preview, built from the rules (no AI consent), then accepted.
   await expect(progress).toHaveAttribute("aria-valuenow", "8");

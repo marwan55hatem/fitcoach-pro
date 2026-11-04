@@ -161,7 +161,6 @@ export function ExerciseCard({
           {canSwap && (
             <Button
               variant="outline"
-              size="sm"
               className="shrink-0"
               aria-expanded={swapping}
               onClick={() => setSwapping(!swapping)}

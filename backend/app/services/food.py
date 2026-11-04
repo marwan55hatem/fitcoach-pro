@@ -13,7 +13,7 @@ from app.ai.client import AiClient
 from app.ai.food import AiFoodEstimate, estimate_from_photo, estimate_from_text
 from app.models import MealLog, MealOption, User
 from app.models.enums import FileKind, MealSlot, MealSource
-from app.rules.food_validation import FoodFlag, FoodItem, check_item, meal_totals
+from app.rules.food_validation import FoodItem, check_item, meal_totals
 from app.schemas.food import FoodLogIn
 from app.services import files
 from app.services.storage import Storage
@@ -53,18 +53,6 @@ def _float(value: Decimal | None) -> float:
 
 
 # --- drafts ---------------------------------------------------------------------------
-
-
-def flags_of(meal: MealLog) -> list[tuple[int | None, FoodFlag]]:
-    """The rule flags found when the draft was made, as (item index, flag)."""
-    return [
-        (f["item"], FoodFlag(f["field"], f["code"], f["message"]))
-        for f in (meal.ai_raw or {}).get("flags", [])
-    ]
-
-
-def questions_of(meal: MealLog) -> list[str]:
-    return list((meal.ai_raw or {}).get("questions", []))
 
 
 def _draft(

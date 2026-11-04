@@ -16,6 +16,16 @@ const PASS_RESPONSE_HEADERS = [
   "www-authenticate",
 ];
 
+// The API's own limit is 12 MB per photo; refuse anything bigger before buffering it on.
+const MAX_BODY_BYTES = 13 * 1024 * 1024;
+
+function tooLarge() {
+  return NextResponse.json(
+    { detail: { code: "too_large", message: "The file is too big." } },
+    { status: 413 },
+  );
+}
+
 async function forward(request: NextRequest, ctx: RouteContext<"/api/backend/[...path]">) {
   const { path } = await ctx.params;
   if ((path[0] === "auth" && path[1] !== "me") || path.some((p) => p === ".." || p === ".")) {
@@ -30,13 +40,17 @@ async function forward(request: NextRequest, ctx: RouteContext<"/api/backend/[..
     if (value) headers.set(name, value);
   }
   const hasBody = !["GET", "HEAD"].includes(request.method);
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) return tooLarge();
+  const body = hasBody ? await request.arrayBuffer() : undefined;
+  if (body && body.byteLength > MAX_BODY_BYTES) return tooLarge();
 
   let res: Response;
   try {
     res = await fetch(target, {
       method: request.method,
       headers,
-      body: hasBody ? await request.arrayBuffer() : undefined,
+      body,
       cache: "no-store",
     });
   } catch {

@@ -49,13 +49,16 @@ npm install
 Copy-Item .env.example .env.local
 npm run dev        # http://localhost:3001
 npm run build      # production build
-npm run e2e        # Playwright on a phone viewport: onboarding, a full workout, Today
+npm run e2e        # Playwright on a phone viewport: onboarding, workout, Today, Food, Progress
 ```
-Run the API too (section 2). The e2e tests use your local database and delete the accounts they create. They need the exercise library seeded and, the first time, `npx playwright install chromium`. When nothing runs on port 8001, Playwright starts the API itself with a higher sign-in rate limit, because every test creates an account; an API you started yourself keeps the normal limit of 10 a minute.
+Run the API too (section 2). The e2e tests use your local database and delete the accounts they create. They need the exercise library seeded and, the first time, `npx playwright install chromium`. Playwright always starts its own API on port 8001, so stop yours first. That API uses the offline demo AI (`AI_PROVIDER=demo`), so tests never call a real model or spend money. It also has a higher sign-in limit, because every test creates an account.
 
 How the web app is put together:
 - **Languages:** every page lives under `/en` or `/ar`. Arabic is Egyptian Arabic, laid out right to left. `/` picks your saved choice, otherwise your browser's language. The strings are in `lib/i18n/en.ts` and `lib/i18n/ar.ts`, and TypeScript rejects the Arabic file if a key is missing.
 - **Login (backend-for-frontend):** the browser talks only to this app. `app/api/auth/*` stores the refresh token in an httpOnly cookie, and the short-lived access token stays in memory: never in localStorage. `app/api/backend/*` passes API calls on to `API_URL`, along with the caller's IP so the API's rate limit applies per user (`TRUSTED_PROXY_IPS` on the API).
+- **Food:** the six meal slots for a day, with calorie and protein rings against the targets, the day's range when estimates are involved, and water cups (250 ml each). Add a meal by photo (the phone camera opens), by describing it, or from My foods. An AI estimate shows as a draft marked unsaved, with its items, ranges, confidence and questions. Change a portion with − and +, then save it. Only saved meals count.
+- **Progress:** weight with its 7-day average, and InBody scans. A scan is uploaded, read by the AI into a draft, checked in a table where doubtful values are highlighted, then confirmed. The muscle, fat and body-fat charts come with the rules' explanation of the last change. Also: progress photos by view with a before/after slider (private, never sent to an AI), weekly sets per muscle against your level's range, and personal bests.
+- **Settings:** language, the optional permissions (AI coaching, body photos, reminders), log out and delete account.
 - **Training in the gym:** Train shows the week; a workout (`/train/workout`) has a card per exercise with demo photos, steps, muscles, last time, your best, a Swap button and the set rows. Ticking a set starts the rest timer (the program's rest time, else 90 s), which beeps and vibrates at zero. Set changes go through a queue (`lib/workout/set-queue.ts`): with no signal they wait and retry, and the page warns before closing while something is unsaved. The queue is kept in memory only, never in browser storage, because workout data is health data.
 - **Installable app:** `app/manifest.ts`, icons in `public/icons` (made by `node scripts/make-icons.mjs`) and a hand-written `public/sw.js`. The service worker only caches the app shell and an offline page, never API data, and it is registered in production builds only.
 
@@ -86,7 +89,7 @@ cd backend
 The first run downloads about 100 MB into `backend/.cache/` (gitignored). `--from-dir DIR` imports from a local copy, `--no-images` skips images, `--limit N` imports a sample. `--check-plan` reports whether the default 4-day split is fully covered.
 
 ### AI (Groq by default)
-All AI calls go through `backend/app/ai/client.py`. `AI_PROVIDER` picks the vendor: `groq` (default) or `openai`. Put the matching key in `backend/.env` (gitignored):
+All AI calls go through `backend/app/ai/client.py`. `AI_PROVIDER` picks the vendor: `groq` (default) or `openai`. `demo` is an offline stand-in with fixed answers, for local demos and the browser tests. It is refused unless `APP_ENV=development`. Put the matching key in `backend/.env` (gitignored):
 ```
 GROQ_API_KEY=your-key
 ```
@@ -108,7 +111,8 @@ It confirms your key can use the configured models, then tests strict JSON, a to
 
 ### Workouts, nutrition and body tracking
 All need the `health_data` consent. Dates default to today in the user's timezone and can't be in the future.
-- **Workouts:** `POST /sessions` with a `program_day_id` from the active program creates the planned sets, with target reps and last time's weight. Log each set with `PATCH /sessions/{id}/sets/{set_id}`, add extra sets with `POST /sessions/{id}/sets`, then call `POST /sessions/{id}/finish`, which reports new personal bests. Only one workout can be open at a time. Also available: `GET /sessions`, `GET /sessions/open`, `DELETE /sessions/{id}`, `POST /sessions/{id}/swap` (the rest of a planned exercise's sets switch to a substitute with the same muscle, the user's equipment and nothing their injuries rule out; the program itself is unchanged), `GET /exercises/{id}/last` (last time and personal best, from finished workouts only), and `GET /stats/volume?weeks=4` (completed sets per muscle per week).
+- **Workouts:** `POST /sessions` with a `program_day_id` from the active program creates the planned sets, with target reps and last time's weight. Log each set with `PATCH /sessions/{id}/sets/{set_id}`, add extra sets with `POST /sessions/{id}/sets`, then call `POST /sessions/{id}/finish`, which reports new personal bests. Only one workout can be open at a time. Also available: `GET /sessions`, `GET /sessions/open`, `DELETE /sessions/{id}`, `POST /sessions/{id}/swap` (the rest of a planned exercise's sets switch to a substitute with the same muscle, the user's equipment and nothing their injuries rule out; the program itself is unchanged), `GET /exercises/{id}/last` (last time and personal best, from finished workouts only), `GET /stats/volume?weeks=4` (completed sets per muscle per week) and `GET /stats/records` (personal bests per exercise).
+- **Progress photos** (need the `body_photos` consent): upload with `POST /files?kind=body_photo`, then `POST /progress-photos {"file_id", "view": "front"|"side"|"back"}`. A second photo of the same view on the same day replaces the first. `GET /progress-photos` returns signed links for each photo and its thumbnail, and `DELETE /progress-photos/{id}` removes the photo and its file. They are never sent to an AI.
 - **Nutrition** (needs plan access): `GET /nutrition/targets` comes from `app/rules/nutrition.py`, using Mifflin-St Jeor or the latest *confirmed* InBody BMR, the activity factor, the goal and approved adjustments in `nutrition_settings`. `GET /nutrition/day?date=` totals only confirmed meals. Also available: `POST/PATCH/DELETE /nutrition/meals` and `PUT /nutrition/days/{date}/water`. Calorie and macro targets are never returned when the health screening withholds them.
 - **Body:** `POST /weight` keeps one weight per day, and `GET /weight` adds a 7-day moving average and the weekly change. `POST /checkins` (sleep, soreness, stress, energy, motivation) keeps one check-in per day, listed by `GET /checkins`.
 

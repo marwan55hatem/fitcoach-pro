@@ -13,6 +13,14 @@ export function parseNumber(text: string): number | null {
   return Number(normalized);
 }
 
+/**
+ * Keep a number range such as "700–850" in reading order inside Arabic text, where the
+ * dash between two numbers would otherwise flip it to "850–700".
+ */
+export function isolated(text: string): string {
+  return `\u2066${text}\u2069`;
+}
+
 /** Up to one decimal, without a trailing ".0". */
 export function formatKg(value: number): string {
   return String(Math.round(value * 10) / 10);

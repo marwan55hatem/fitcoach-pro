@@ -256,3 +256,136 @@ export type NutritionDay = {
   targets: (Macros & { water_ml: number }) | null; // null when targets are withheld
   targets_withheld: boolean;
 };
+
+export type FileKind = "inbody" | "body_photo" | "food" | "chat";
+export type StoredFile = { id: string; kind: FileKind; content_type: string; size_bytes: number };
+
+export const MEAL_SLOTS = ["breakfast", "snack", "lunch", "pre_workout", "dinner", "bed"] as const;
+export type MealSlot = (typeof MEAL_SLOTS)[number] | "post_workout";
+export type FoodItem = {
+  name: string;
+  grams?: number;
+  units?: string;
+  kcal_min?: number;
+  kcal_max?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+};
+export type Meal = {
+  id: string;
+  date: string;
+  slot: MealSlot;
+  source: "text" | "photo" | "manual" | "catalog";
+  name: string;
+  items: FoodItem[];
+  kcal: number | null; // an estimate's midpoint
+  kcal_min: number | null;
+  kcal_max: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  confidence: number | null;
+  file_id: string | null;
+  confirmed: boolean; // drafts do not count until confirmed
+  user_edited: boolean;
+  questions: string[]; // a draft's questions from the AI
+  flags: FoodFlag[]; // a draft's numbers to check
+};
+export type FoodFlag = { item: number | null; field: string; code: string; message: string };
+export type FoodDraft = Meal;
+export type FoodLogIn = {
+  date: string;
+  slot: MealSlot;
+  name: string;
+  items: FoodItem[];
+  kcal: number;
+  kcal_min: number | null;
+  kcal_max: number | null;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+};
+export type PersonalFood = {
+  id: string;
+  name: string;
+  slot: MealSlot | null;
+  items: FoodItem[];
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+};
+export type FoodDay = {
+  date: string;
+  meals: Meal[];
+  water_ml: number;
+  totals: Macros & { kcal_min: number; kcal_max: number; meals_counted: number; drafts_excluded: number };
+  targets: (Macros & { water_ml: number }) | null;
+  targets_withheld: boolean;
+};
+
+export const INBODY_FIELDS = [
+  "weight_kg",
+  "smm_kg",
+  "body_fat_mass_kg",
+  "pbf_pct",
+  "bmi",
+  "tbw_l",
+  "bmr_kcal",
+  "visceral_fat_level",
+  "inbody_score",
+] as const;
+export type InbodyField = (typeof INBODY_FIELDS)[number];
+export type Segments = Record<"left_arm" | "right_arm" | "trunk" | "left_leg" | "right_leg", number | null>;
+export type ScanFlag = { field: string; code: string; message: string };
+export type InbodyScan = Record<InbodyField, number | null> & {
+  id: string;
+  taken_on: string;
+  file_id: string | null;
+  confirmed: boolean;
+  confirmed_at: string | null;
+  segmental_lean: Segments | null;
+  segmental_fat: Segments | null;
+  confidence: Record<string, number>;
+  flags: ScanFlag[];
+};
+export type InbodyTrend = {
+  points: { date: string; weight_kg: number | null; smm_kg: number | null; body_fat_mass_kg: number | null; pbf_pct: number | null }[];
+  change: {
+    from_date: string;
+    to_date: string;
+    days: number;
+    weight_kg: number | null;
+    smm_kg: number | null;
+    body_fat_mass_kg: number | null;
+    pbf_pct: number | null;
+    interpretation_code: string | null;
+    interpretation: string | null;
+  } | null;
+};
+
+export const PHOTO_VIEWS = ["front", "side", "back"] as const;
+export type PhotoView = (typeof PHOTO_VIEWS)[number];
+export type ProgressPhoto = {
+  id: string;
+  taken_on: string;
+  view: PhotoView;
+  notes: string | null;
+  file_id: string;
+  url: string;
+  thumbnail_url: string | null;
+};
+export type VolumeStats = {
+  weeks: { week_start: string; sets_by_muscle: Record<string, number> }[];
+  target_min: number | null;
+  target_max: number | null;
+};
+export type PersonalRecord = {
+  exercise_id: string;
+  name: string;
+  date: string;
+  best_e1rm: BestSet | null;
+  heaviest: BestSet | null;
+  most_reps: number;
+};

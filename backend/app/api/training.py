@@ -16,6 +16,7 @@ from app.schemas.training import (
     FinishOut,
     LastSetOut,
     PersonalBestOut,
+    RecordOut,
     SessionList,
     SessionOut,
     SessionSummary,
@@ -274,6 +275,22 @@ def exercise_last(
         if best
         else None,
     )
+
+
+@stats_router.get("/records", response_model=list[RecordOut])
+def records(db: DbSession, user: HealthUser) -> list[RecordOut]:
+    """Your personal bests per exercise (finished workouts only), newest first."""
+    return [
+        RecordOut(
+            exercise_id=exercise_id,
+            name=name,
+            date=date,
+            best_e1rm=_best(best.best_e1rm),
+            heaviest=_best(best.heaviest),
+            most_reps=best.most_reps,
+        )
+        for exercise_id, name, best, date in svc.records(db, user)
+    ]
 
 
 @stats_router.get("/volume", response_model=VolumeOut)

@@ -23,9 +23,11 @@ from app.models.enums import ProgramStatus
 from app.rules.exercise_catalog import CatalogExercise
 from app.rules.training_stats import (
     LoggedSet,
+    PersonalBest,
     counts_as_work,
     last_top_weight,
     new_records,
+    personal_best,
     week_start,
     weekly_volume,
 )
@@ -89,6 +91,7 @@ def logged_sets(
     exercise_ids: list[uuid.UUID] | None = None,
     since: dt.date | None = None,
     exclude_session: uuid.UUID | None = None,
+    finished_only: bool = False,
 ) -> list[LoggedSet]:
     """The user's done sets as plain rule inputs."""
     query = (
@@ -102,7 +105,35 @@ def logged_sets(
         query = query.where(WorkoutSession.performed_on >= since)
     if exclude_session is not None:
         query = query.where(SetLog.workout_session_id != exclude_session)
+    if finished_only:
+        query = query.where(WorkoutSession.ended_at.is_not(None))
     return [_logged(row, on) for row, on in db.execute(query)]
+
+
+def records(
+    db: Session, user: User
+) -> list[tuple[uuid.UUID, str, PersonalBest, dt.date]]:
+    """Personal bests per exercise from finished workouts, newest record first."""
+    by_exercise: dict[str, list[LoggedSet]] = defaultdict(list)
+    for s in logged_sets(db, user, finished_only=True):
+        by_exercise[s.exercise_id].append(s)
+    ids = [uuid.UUID(e) for e in by_exercise]
+    names: dict[uuid.UUID, str] = {}
+    if ids:
+        rows = db.execute(
+            sa.select(Exercise.id, Exercise.name).where(Exercise.id.in_(ids))
+        )
+        names = {key: value for key, value in rows}
+    found = []
+    for exercise_id, sets in by_exercise.items():
+        best = personal_best(sets)
+        if best is None:
+            continue
+        dates = [b.date for b in (best.best_e1rm, best.heaviest) if b is not None]
+        latest = max(dates, default=max(s.performed_on for s in sets))
+        key = uuid.UUID(exercise_id)
+        found.append((key, names.get(key, ""), best, latest))
+    return sorted(found, key=lambda r: (r[3], r[1]), reverse=True)
 
 
 def open_session(db: Session, user: User) -> WorkoutSession | None:
