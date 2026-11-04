@@ -15,6 +15,7 @@ from app.api import (
     exercises,
     files,
     health,
+    inbody,
     me,
     nutrition,
     onboarding,
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(nutrition.router)
     app.include_router(body.router)
     app.include_router(files.router)
+    app.include_router(inbody.router)
     return app
 
 

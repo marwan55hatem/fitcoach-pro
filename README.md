@@ -120,6 +120,19 @@ All need the `health_data` consent. Dates default to today in the user's timezon
 - **Your data:** the export (`GET /me/export`) includes the originals, not the thumbnails. Deleting the account removes both.
 - **AI:** `app/services/files.py:load_for_ai` gives a feature a size-limited copy of a photo for an AI call. It refuses body photos, which never go to an AI provider.
 
+### InBody scans
+Upload the scan with `POST /files?kind=inbody` (a photo or PDF), then `POST /inbody/analyze {"file_id": ...}`. This needs the `health_data` and `ai_processing` consents. Only the image goes to the AI (`app/ai/inbody.py`): no name, email or profile. The AI copies the printed numbers with a confidence for each, and any text on the sheet is treated as data.
+- **Checks:** `app/rules/inbody_validation.py` checks the result:
+  - body fat between 3 and 60 %
+  - muscle less than weight, and muscle plus fat less than weight
+  - BMI matching height and weight
+  - body fat % matching fat mass
+  - BMR between 1000 and 3500 kcal
+
+  Doubtful values come back in `flags` with lower confidence. Impossible ones are left out.
+- **Drafts:** the result is a draft. Fix it with `PUT /inbody/{id}`, then `POST /inbody/{id}/confirm`. Only confirmed scans count anywhere else, for example the BMR in nutrition targets. Unconfirmed drafts are deleted after 7 days.
+- **Reading scans:** `GET /inbody` lists confirmed scans, `GET /inbody/drafts` lists drafts, and `GET /inbody/trend` shows weight, muscle and fat over time. The trend also explains the last change, for example "muscle up, fat flat: a good lean gain".
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 
