@@ -167,6 +167,36 @@ def test_day_totals_exclude_unconfirmed_drafts() -> None:
 def test_day_totals_of_an_empty_day_are_zero() -> None:
     totals = day_totals([])
     assert (totals.kcal, totals.protein_g, totals.meals_counted) == (0, 0, 0)
+    assert (totals.kcal_min, totals.kcal_max) == (0, 0)
+
+
+def test_day_totals_keep_the_estimate_range() -> None:
+    meals = [
+        # An estimate counts its midpoint; the range shows the uncertainty.
+        MealEntry(
+            kcal=775,
+            protein_g=22,
+            carbs_g=140,
+            fat_g=15,
+            confirmed=True,
+            kcal_min=700,
+            kcal_max=850,
+        ),
+        # A typed meal is exact: it adds the same to both ends.
+        MealEntry(kcal=300, protein_g=30, carbs_g=10, fat_g=10, confirmed=True),
+        MealEntry(
+            kcal=900,
+            protein_g=0,
+            carbs_g=0,
+            fat_g=0,
+            confirmed=False,
+            kcal_min=800,
+            kcal_max=1000,
+        ),
+    ]
+    totals = day_totals(meals)
+    assert totals.kcal == 1075
+    assert (totals.kcal_min, totals.kcal_max) == (1000, 1150)
 
 
 def test_remaining_can_go_negative_when_over_target() -> None:

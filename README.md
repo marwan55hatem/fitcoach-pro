@@ -133,6 +133,14 @@ Upload the scan with `POST /files?kind=inbody` (a photo or PDF), then `POST /inb
 - **Drafts:** the result is a draft. Fix it with `PUT /inbody/{id}`, then `POST /inbody/{id}/confirm`. Only confirmed scans count anywhere else, for example the BMR in nutrition targets. Unconfirmed drafts are deleted after 7 days.
 - **Reading scans:** `GET /inbody` lists confirmed scans, `GET /inbody/drafts` lists drafts, and `GET /inbody/trend` shows weight, muscle and fat over time. The trend also explains the last change, for example "muscle up, fat flat: a good lean gain".
 
+### Food logging
+`POST /food/estimate {"file_id" | "text", "slot", "date"?}` estimates a meal from a food photo (uploaded with `kind=food`), a description, or both. It needs the `health_data` and `ai_processing` consents. The prompt (`app/ai/food.py`) knows common Egyptian dishes and portions (koshari, foul, taameya, fatta, molokhia, mahshi, kofta, shawerma, baladi bread, feteer, rice, chicken, tuna, zabadi).
+- **Estimate:** each item gets a portion, a calorie range and macros, plus questions when the portion is unclear. Only the photo and your own words about the meal are sent, and text in either is treated as data.
+- **Checks:** `app/rules/food_validation.py` checks that calories roughly match protein, carbs and fat (4/4/9), that each range is in order, and that no single item is impossibly large.
+- **The result is a draft:** `PUT /food/logs/{id}` saves your checked version and confirms it. If you changed anything, the meal is marked as edited. Drafts left unconfirmed are deleted after 24 hours.
+- **Totals:** `/nutrition/day` counts only confirmed meals. An estimate counts its midpoint, and `kcal_min`..`kcal_max` shows the day's possible range.
+- **Manual and saved meals:** `POST /food/logs` logs a meal you type in. `POST /food/personal {"meal_log_id"}` keeps a confirmed meal as one of your own foods, and `GET /food/personal` lists them.
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

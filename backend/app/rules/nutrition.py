@@ -75,11 +75,13 @@ class NutritionTargets:
 
 @dataclass(frozen=True)
 class MealEntry:
-    kcal: int | None
+    kcal: int | None  # an estimate's midpoint
     protein_g: float | None
     carbs_g: float | None
     fat_g: float | None
     confirmed: bool
+    kcal_min: int | None = None  # an estimate's range; None for a typed (exact) meal
+    kcal_max: int | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,8 @@ class DayTotals:
     fat_g: float
     meals_counted: int
     drafts_excluded: int
+    kcal_min: int = 0  # how low and high the day could be, given the estimates
+    kcal_max: int = 0
 
 
 @dataclass(frozen=True)
@@ -160,8 +164,12 @@ def daily_targets(inp: NutritionInput) -> NutritionTargets:
 
 
 def day_totals(meals: Iterable[MealEntry]) -> DayTotals:
-    """Totals of confirmed meals only. AI drafts count once the user confirms them."""
+    """Totals of confirmed meals only. AI drafts count once the user confirms them.
+
+    Estimates count their midpoint; kcal_min..kcal_max keeps the uncertainty visible.
+    """
     kcal, protein, carbs, fat = 0, 0.0, 0.0, 0.0
+    low = high = 0
     counted = drafts = 0
     for meal in meals:
         if not meal.confirmed:
@@ -169,10 +177,12 @@ def day_totals(meals: Iterable[MealEntry]) -> DayTotals:
             continue
         counted += 1
         kcal += meal.kcal or 0
+        low += meal.kcal_min if meal.kcal_min is not None else meal.kcal or 0
+        high += meal.kcal_max if meal.kcal_max is not None else meal.kcal or 0
         protein += meal.protein_g or 0
         carbs += meal.carbs_g or 0
         fat += meal.fat_g or 0
-    return DayTotals(kcal, protein, carbs, fat, counted, drafts)
+    return DayTotals(kcal, protein, carbs, fat, counted, drafts, low, high)
 
 
 def remaining(targets: NutritionTargets, totals: DayTotals) -> Remaining:

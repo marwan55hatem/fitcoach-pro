@@ -14,6 +14,7 @@ from app.api import (
     consents,
     exercises,
     files,
+    food,
     health,
     inbody,
     me,
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(body.router)
     app.include_router(files.router)
     app.include_router(inbody.router)
+    app.include_router(food.router)
     return app
 
 

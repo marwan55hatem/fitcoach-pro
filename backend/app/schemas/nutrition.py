@@ -46,10 +46,14 @@ class MealOut(BaseModel):
     source: MealSource
     name: str
     items: list[dict[str, object]]
-    kcal: int | None
+    kcal: int | None  # an estimate's midpoint
+    kcal_min: int | None  # an estimate's range; null for a meal typed in exactly
+    kcal_max: int | None
     protein_g: float | None
     carbs_g: float | None
     fat_g: float | None
+    confidence: float | None  # how sure an AI estimate was (0 to 1)
+    file_id: uuid.UUID | None  # the meal's photo, if any
     confirmed: bool  # drafts (AI-read meals) do not count until confirmed
     user_edited: bool
 
@@ -73,7 +77,9 @@ class TargetsOut(BaseModel):
 
 
 class TotalsOut(BaseModel):
-    kcal: int
+    kcal: int  # estimates count their midpoint
+    kcal_min: int  # the day's low and high end, given the estimates
+    kcal_max: int
     protein_g: float
     carbs_g: float
     fat_g: float

@@ -41,7 +41,9 @@ class MealLog(OwnedBase, Base):
     source: Mapped[MealSource] = mapped_column(enum_col(MealSource))
     name: Mapped[str] = mapped_column(sa.String(200))
     items: Mapped[list[Any]] = mapped_column(server_default=sa.text("'[]'::jsonb"))
-    kcal: Mapped[int | None]
+    kcal: Mapped[int | None]  # for an estimate: the midpoint of kcal_min..kcal_max
+    kcal_min: Mapped[int | None]
+    kcal_max: Mapped[int | None]
     protein_g: Mapped[Decimal | None] = mapped_column(sa.Numeric(7, 1))
     carbs_g: Mapped[Decimal | None] = mapped_column(sa.Numeric(7, 1))
     fat_g: Mapped[Decimal | None] = mapped_column(sa.Numeric(7, 1))
@@ -59,6 +61,11 @@ class MealLog(OwnedBase, Base):
     __table_args__ = (
         sa.Index("ix_meal_logs_user_id_date", "user_id", "date"),
         sa.CheckConstraint("kcal IS NULL OR kcal >= 0", name="kcal_non_negative"),
+        sa.CheckConstraint(
+            "kcal_min IS NULL OR (kcal_min >= 0 AND kcal_max IS NOT NULL "
+            "AND kcal_max >= kcal_min)",
+            name="kcal_range",
+        ),
         sa.CheckConstraint(
             "confidence IS NULL OR confidence BETWEEN 0 AND 1", name="confidence_range"
         ),

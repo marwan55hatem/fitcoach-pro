@@ -28,7 +28,7 @@ def _float(value: Decimal | None) -> float | None:
     return None if value is None else float(value)
 
 
-def _meal_out(meal: MealLog) -> MealOut:
+def meal_out(meal: MealLog) -> MealOut:
     return MealOut(
         id=meal.id,
         date=meal.date,
@@ -37,9 +37,13 @@ def _meal_out(meal: MealLog) -> MealOut:
         name=meal.name,
         items=list(meal.items or []),
         kcal=meal.kcal,
+        kcal_min=meal.kcal_min,
+        kcal_max=meal.kcal_max,
         protein_g=_float(meal.protein_g),
         carbs_g=_float(meal.carbs_g),
         fat_g=_float(meal.fat_g),
+        confidence=_float(meal.confidence),
+        file_id=meal.file_id,
         confirmed=meal.confirmed,
         user_edited=meal.user_edited,
     )
@@ -81,7 +85,7 @@ def day(
     left = remaining(t, totals) if t else None
     return DayOut(
         date=date,
-        meals=[_meal_out(m) for m in meals],
+        meals=[meal_out(m) for m in meals],
         water_ml=water,
         totals=TotalsOut(**totals.__dict__),
         targets=_targets_out(t) if t else None,
@@ -95,14 +99,14 @@ def day(
 @router.post("/meals", response_model=MealOut, status_code=status.HTTP_201_CREATED)
 def add_meal(body: MealIn, db: DbSession, user: PlanUser) -> MealOut:
     not_in_future(body.date, db, user)
-    return _meal_out(svc.add_meal(db, user, body))
+    return meal_out(svc.add_meal(db, user, body))
 
 
 @router.patch("/meals/{meal_id}", response_model=MealOut)
 def edit_meal(
     meal_id: uuid.UUID, body: MealPatchIn, db: DbSession, user: PlanUser
 ) -> MealOut:
-    return _meal_out(svc.update_meal(db, _owned_meal(db, user, meal_id), body))
+    return meal_out(svc.update_meal(db, _owned_meal(db, user, meal_id), body))
 
 
 @router.delete("/meals/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)

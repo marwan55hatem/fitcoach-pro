@@ -112,6 +112,8 @@ def totals_of(meals: list[MealLog]) -> DayTotals:
             carbs_g=float(m.carbs_g) if m.carbs_g is not None else None,
             fat_g=float(m.fat_g) if m.fat_g is not None else None,
             confirmed=m.confirmed,
+            kcal_min=m.kcal_min,
+            kcal_max=m.kcal_max,
         )
         for m in meals
     )
