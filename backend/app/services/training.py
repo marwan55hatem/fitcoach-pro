@@ -430,10 +430,17 @@ def day_names(db: Session, sessions: list[WorkoutSession]) -> dict[uuid.UUID, st
 
 
 def exercise_names(db: Session, sessions: list[WorkoutSession]) -> dict[uuid.UUID, str]:
-    ids = {row.exercise_id for s in sessions for row in s.sets}
+    return exercise_names_by_id(
+        db, [row.exercise_id for s in sessions for row in s.sets]
+    )
+
+
+def exercise_names_by_id(db: Session, ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
     if not ids:
         return {}
-    rows = db.execute(sa.select(Exercise.id, Exercise.name).where(Exercise.id.in_(ids)))
+    rows = db.execute(
+        sa.select(Exercise.id, Exercise.name).where(Exercise.id.in_(set(ids)))
+    )
     return {key: value for key, value in rows}
 
 

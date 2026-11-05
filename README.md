@@ -161,6 +161,23 @@ Pure, tested functions in `backend/app/rules`. They suggest changes, and nothing
   .\.venv\Scripts\python.exe -m pytest --cov=app/rules --cov-report=term-missing
   ```
 
+### AI coach
+`POST /coach/chat {"text", "conversation_id"?, "file_id"?}` streams the reply as server-sent events: `meta`, `delta`, `tool`, `proposal`, `done` and `error`. It needs the `health_data` and `ai_processing` consents. The Coach tab reads the stream with `fetch` (not `EventSource`), because the access token lives in memory.
+- **Red flags first:** `app/rules/redflags.py` checks every message before any AI call, in English, Egyptian Arabic and Franco-Arabic. It covers chest pain, fainting, severe pain, numbness, self-harm, eating-disorder signs, pregnancy, medication, minors and steroids. A match gets a fixed safe reply in the user's language, and the conversation stays careful on that topic.
+- **Tools** (`app/services/coach_tools.py`):
+  - Read tools see only the current user's data: profile (no name or email), program, workouts, lift history, weight, confirmed InBody scans, food, check-ins, notes and the coaching rules' suggestions.
+  - Write tools only create pending proposals, each checked by `validate_recommendation`, or checked notes (`app/rules/coach_notes.py`: short, no links, no instructions).
+  - Tool results reach the model fenced as untrusted data.
+  - The loop stops after 8 model turns.
+- **Prompt** (`app/ai/prompts/coach.md`): concise, data first, no diagnosis or medication advice, follows the health check, and replies in the user's language.
+- **Conversations:** saved with a rolling summary for long chats. A reply cut off midway is saved as partial. Photos: chat and food photos only, never body progress photos.
+- **Memory:** `GET/PUT/DELETE /coach/notes`, shown on the "What the coach remembers" page.
+- **Proposals:** `GET /recommendations`, `POST /recommendations/{id}/reject`, and `POST /recommendations/{id}/approve`. Approve re-checks the proposal; actually applying it arrives with the weekly review.
+- **Evals:** scripted scenarios in `backend/tests/evals/scenarios.json`, run offline with no real AI:
+  ```powershell
+  .\.venv\Scripts\python.exe -m tests.evals.run
+  ```
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

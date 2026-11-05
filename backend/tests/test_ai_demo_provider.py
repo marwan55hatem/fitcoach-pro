@@ -89,3 +89,29 @@ def test_demo_chat_says_it_is_a_demo() -> None:
         user_ref=None,
     )
     assert isinstance(result, ChatResult) and "demo" in result.text.lower()
+
+
+def test_demo_coach_can_show_a_proposal() -> None:
+    from app.ai.types import ToolResultMessage
+    from app.services.coach_tools import TOOL_SPECS
+
+    def turn(messages):
+        events = list(
+            DemoProvider().stream_chat(
+                model="demo",
+                system="",
+                messages=messages,
+                tools=TOOL_SPECS,
+                max_output_tokens=100,
+                reasoning_effort=None,
+                user_ref=None,
+            )
+        )
+        return events[-1].result
+
+    first = turn([UserMessage("Should I eat more calories?")])
+    (call,) = first.tool_calls
+    assert call.name == "propose_nutrition_change"
+    assert call.arguments["payload"] == {"change_kcal": 100}
+    second = turn([UserMessage("calories?"), ToolResultMessage("demo-1", "{}")])
+    assert "Approve" in second.text and not second.tool_calls

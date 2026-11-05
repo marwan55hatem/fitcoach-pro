@@ -11,6 +11,7 @@ from app.ai.errors import AiError
 from app.api import (
     auth,
     body,
+    coach,
     consents,
     exercises,
     files,
@@ -22,6 +23,7 @@ from app.api import (
     onboarding,
     programs,
     progress,
+    recommendations,
     training,
 )
 from app.api.errors import PoolTimeoutError, ai_error_handler, db_busy_handler
@@ -75,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(inbody.router)
     app.include_router(food.router)
     app.include_router(progress.router)
+    app.include_router(coach.router)
+    app.include_router(recommendations.router)
     return app
 
 

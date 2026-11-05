@@ -50,40 +50,45 @@ export async function createReadyUser(
     password: PASSWORD,
   })) as { access_token: string };
   const user = { email, token };
-  const consents = Object.fromEntries(["health_data", ...extraConsents].map((c) => [c, true]));
-  await apiCall(request, user, "PUT", "/consents", { consents });
-  await apiCall(request, user, "PUT", "/onboarding/profile", {
-    birth_date: adultBirthDate(),
-    sex: "male",
-    height_cm: 193,
-    weight_kg: 70,
-    goal: "lean_bulk",
-    experience: "intermediate",
-    days_per_week: 4,
-    session_minutes: 75,
-    equipment: ["barbell", "dumbbell", "ez_bar", "cable", "machine", "bench"],
-    activity_level: "moderate",
-    timezone: "Africa/Cairo",
-    language: "en",
-  });
-  await apiCall(request, user, "PUT", "/onboarding/limitations", { limitations: [] });
-  await apiCall(request, user, "PUT", "/onboarding/diet", { meals_per_day: 4 });
-  const no = Object.fromEntries(
-    [
-      "chest_pain",
-      "heart_condition",
-      "blood_pressure_uncontrolled",
-      "fainting_or_dizziness",
-      "pregnant",
-      "recent_surgery",
-      "medication_affecting_exercise",
-      "joint_or_bone_problem",
-      "eating_concern",
-    ].map((q) => [q, false]),
-  );
-  await apiCall(request, user, "POST", "/onboarding/screening", no);
-  const draft = await apiCall<{ id: string }>(request, user, "POST", "/programs/generate", { use_ai: false });
-  await apiCall(request, user, "POST", `/programs/${draft.id}/accept`);
+  try {
+    const consents = Object.fromEntries(["health_data", ...extraConsents].map((c) => [c, true]));
+    await apiCall(request, user, "PUT", "/consents", { consents });
+    await apiCall(request, user, "PUT", "/onboarding/profile", {
+      birth_date: adultBirthDate(),
+      sex: "male",
+      height_cm: 193,
+      weight_kg: 70,
+      goal: "lean_bulk",
+      experience: "intermediate",
+      days_per_week: 4,
+      session_minutes: 75,
+      equipment: ["barbell", "dumbbell", "ez_bar", "cable", "machine", "bench"],
+      activity_level: "moderate",
+      timezone: "Africa/Cairo",
+      language: "en",
+    });
+    await apiCall(request, user, "PUT", "/onboarding/limitations", { limitations: [] });
+    await apiCall(request, user, "PUT", "/onboarding/diet", { meals_per_day: 4 });
+    const no = Object.fromEntries(
+      [
+        "chest_pain",
+        "heart_condition",
+        "blood_pressure_uncontrolled",
+        "fainting_or_dizziness",
+        "pregnant",
+        "recent_surgery",
+        "medication_affecting_exercise",
+        "joint_or_bone_problem",
+        "eating_concern",
+      ].map((q) => [q, false]),
+    );
+    await apiCall(request, user, "POST", "/onboarding/screening", no);
+    const draft = await apiCall<{ id: string }>(request, user, "POST", "/programs/generate", { use_ai: false });
+    await apiCall(request, user, "POST", `/programs/${draft.id}/accept`);
+  } catch (error) {
+    await deleteUser(request, user); // never leave a half-made test account behind
+    throw error;
+  }
   return user;
 }
 

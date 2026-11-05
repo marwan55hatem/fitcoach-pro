@@ -14,6 +14,11 @@ class Conversation(OwnedBase, Base):
     __tablename__ = "conversations"
 
     title: Mapped[str | None] = mapped_column(sa.String(200))
+    # A rolling summary of the older messages keeps long chats cheap.
+    summary: Mapped[str | None] = mapped_column(sa.Text)
+    summarized_count: Mapped[int] = mapped_column(server_default=sa.text("0"))
+    # Set by a red flag: the coach stays careful on that topic (app/rules/redflags.py).
+    safety_mode: Mapped[str | None] = mapped_column(sa.String(32))
 
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation",
@@ -35,6 +40,13 @@ class Message(OwnedBase, Base):
     tool_calls: Mapped[list[Any] | None]
     tokens_in: Mapped[int | None]
     tokens_out: Mapped[int | None]
+    file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("files.id", ondelete="SET NULL")
+    )
+    red_flag: Mapped[str | None] = mapped_column(sa.String(32))  # category, if any
+    partial: Mapped[bool] = mapped_column(
+        server_default=sa.false()
+    )  # cut off mid-reply
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 

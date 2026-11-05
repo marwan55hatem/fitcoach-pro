@@ -7,6 +7,7 @@
     fake.queue_error(AiTimeoutError())                               # a provider failure
     fake.queue_chat(text="hi", tool_calls=[ToolCall(...)])           # a chat turn
     fake.queue_stream(["Hel", "lo"])                                 # a streamed reply
+    fake.queue_stream([], tool_calls=[ToolCall(...)])                # a streamed tool turn
 
 Every call is recorded in `fake.calls` so tests can assert what would have been sent.
 """
@@ -76,9 +77,13 @@ class FakeProvider:
         )
 
     def queue_stream(
-        self, chunks: Sequence[str], *, usage: Usage = DEFAULT_USAGE
+        self,
+        chunks: Sequence[str],
+        *,
+        tool_calls: Sequence[ToolCall] = (),
+        usage: Usage = DEFAULT_USAGE,
     ) -> None:
-        self._queue.append(("stream", list(chunks), usage))
+        self._queue.append(("stream", list(chunks), usage, tuple(tool_calls)))
 
     def queue_error(self, error: Exception) -> None:
         self._queue.append(error)
@@ -148,7 +153,9 @@ class FakeProvider:
                 "stream", model, system, list(messages), list(tools), user_ref=user_ref
             )
         )
-        _, chunks, usage = self._next()
+        _, chunks, usage, tool_calls = self._next()
         for chunk in chunks:
             yield TextDelta(chunk)
-        yield StreamDone(ChatResult("".join(chunks), (), (), None, usage, "req_fake"))
+        yield StreamDone(
+            ChatResult("".join(chunks), tool_calls, (), None, usage, "req_fake")
+        )

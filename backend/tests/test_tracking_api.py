@@ -15,15 +15,20 @@ from app.core.config import Settings
 from app.db.session import get_db
 from app.main import create_app
 from app.models import (
+    Checkin,
     Exercise,
     InbodyScan,
     MealLog,
     NutritionSettings,
     SetLog,
+    User,
     WeightLog,
 )
 from app.models.enums import MealSlot, MealSource
+from app.rules.limits import Kind
 from app.rules.program_validator import MUSCLE_GROUPS
+from app.rules.review import weekly_review
+from app.services import coaching, onboarding
 from app.services.storage import Storage, get_storage
 from tests.fakes.ai import FakeProvider
 from tests.helpers import Account, delete_me, grant_consents, register_and_login
@@ -789,3 +794,49 @@ def test_account_deletion_removes_tracking_data(client, user, program, db) -> No
     assert left == 0
     meals = sa.select(sa.func.count()).select_from(MealLog)
     assert db.scalar(meals.where(MealLog.user_id == user.id)) == 0
+
+
+# --- the coaching rules' inputs --------------------------------------------------------
+
+
+def test_review_input_from_real_data(client, db: Session, user, program) -> None:
+    day = program["days"][0]
+    first = day["exercises"][0]
+    session = started(client, user, day)
+    do_sets(client, user, session, first["exercise_id"], 60, first["rep_max"])
+    finish(client, user, session)
+
+    account = db.get(User, user.id)
+    today = onboarding.user_today(db, account)
+    for days_ago, kg in [(20, 70.0), (13, 70.05), (6, 70.1), (0, 70.12)]:
+        date = (today - dt.timedelta(days=days_ago)).isoformat()
+        res = client.post(
+            "/weight", headers=user.headers, json={"weight_kg": kg, "date": date}
+        )
+        assert res.status_code == 200, res.text
+    db.add(
+        Checkin(
+            user_id=account.id,
+            date=today,
+            sleep_h=8,
+            energy=5,
+            motivation=5,
+            soreness=1,
+            stress=1,
+        )
+    )
+    db.commit()
+
+    inp = coaching.review_input(db, account, today)
+    names = {e.exercise_id: e for e in inp.exercises}
+    history = names[first["exercise_id"]]
+    assert (history.rep_min, history.rep_max) == (first["rep_min"], first["rep_max"])
+    assert len(history.sessions) == 1 and history.sessions[0].sets[0].weight_kg == 60
+    assert inp.readiness_scores == (100,)
+    assert inp.weekly_changes and all(c < 0.15 for c in inp.weekly_changes)
+    assert inp.state.goal == "lean_bulk" and inp.state.targets_withheld is False
+
+    recs = weekly_review(inp)
+    load = [r for r in recs if r.kind is Kind.LOAD_CHANGE]
+    assert load and load[0].payload["to_kg"] > 60
+    assert db.scalar(sa.select(sa.func.count()).select_from(WeightLog)) >= 4

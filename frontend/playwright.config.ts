@@ -25,11 +25,17 @@ export default defineConfig({
       cwd: "../backend",
       url: "http://localhost:8001/health",
       // Always a fresh API for the tests: the offline demo AI (never a real model or a
-      // paid call) and a higher sign-in limit, since each test creates an account.
+      // paid call) and higher rate limits, since every test creates an account.
       // Stop your own API on port 8001 before running the tests.
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { RATE_LIMIT_AUTH: "1000/minute", AI_PROVIDER: "demo", APP_ENV: "development" },
+      env: {
+        RATE_LIMIT_AUTH: "1000/minute",
+        RATE_LIMIT_AI: "1000/minute",
+        RATE_LIMIT_UPLOAD: "1000/minute",
+        AI_PROVIDER: "demo",
+        APP_ENV: "development",
+      },
     },
     {
       command: "npm run dev",

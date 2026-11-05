@@ -18,13 +18,40 @@ from app.ai.types import (
     StreamDone,
     StreamEvent,
     TextDelta,
+    ToolCall,
+    ToolResultMessage,
     ToolSpec,
     Usage,
+    UserMessage,
 )
 
 DEMO_MODEL = "demo"
 _USAGE = Usage(input_tokens=0, output_tokens=0)
 _CHAT_TEXT = "This is the offline demo coach. Connect a real AI provider for answers."
+_PROPOSED_TEXT = "I suggested 100 more calories a day. Approve it if you agree."
+_CALORIE_WORDS = ("calorie", "سعرات")
+
+
+def _demo_turn(messages: Messages, tools: Sequence[ToolSpec]) -> ChatResult:
+    """Mention calories and the demo coach proposes +100 kcal, to show the approval flow."""
+    last = messages[-1] if messages else None
+    if isinstance(last, ToolResultMessage):
+        return ChatResult(text=_PROPOSED_TEXT, usage=_USAGE, request_id="demo")
+    asks = isinstance(last, UserMessage) and any(
+        w in last.text.lower() for w in _CALORIE_WORDS
+    )
+    if asks and any(t.name == "propose_nutrition_change" for t in tools):
+        call = ToolCall(
+            "demo-1",
+            "propose_nutrition_change",
+            {
+                "kind": "calorie_change",
+                "payload": {"change_kcal": 100},
+                "reason": "Demo: a small increase to show how approvals work.",
+            },
+        )
+        return ChatResult(tool_calls=(call,), usage=_USAGE, request_id="demo")
+    return ChatResult(text=_CHAT_TEXT, usage=_USAGE, request_id="demo")
 
 
 def _reading(value: float | None, confidence: float = 0.95) -> dict[str, Any]:
@@ -128,7 +155,7 @@ class DemoProvider:
         reasoning_effort: str | None,
         user_ref: str | None,
     ) -> ChatResult:
-        return ChatResult(text=_CHAT_TEXT, usage=_USAGE, request_id="demo")
+        return _demo_turn(messages, tools)
 
     def stream_chat(
         self,
@@ -141,5 +168,7 @@ class DemoProvider:
         reasoning_effort: str | None,
         user_ref: str | None,
     ) -> Iterator[StreamEvent]:
-        yield TextDelta(_CHAT_TEXT)
-        yield StreamDone(ChatResult(text=_CHAT_TEXT, usage=_USAGE, request_id="demo"))
+        result = _demo_turn(messages, tools)
+        if result.text:
+            yield TextDelta(result.text)
+        yield StreamDone(result)

@@ -11,6 +11,7 @@ Features never talk to a vendor SDK. They call AiClient, which owns:
 
 import datetime as dt
 import hashlib
+import itertools
 import logging
 import random
 import time
@@ -116,6 +117,11 @@ class AiClient:
                 )
             )
         return int(used or 0)
+
+    def ensure_available(self, user_id: uuid.UUID) -> None:
+        """Fail early, before a response starts streaming: no key, or budget used up."""
+        self._require_provider()
+        self._check_budget(user_id)
 
     def _check_budget(self, user_id: uuid.UUID) -> None:
         if self.tokens_used_today(user_id) >= self._settings.ai_daily_token_budget:
@@ -275,22 +281,31 @@ class AiClient:
     ) -> Iterator[StreamEvent]:
         """Stream text deltas, then a final StreamDone. Usage is recorded when it finishes.
 
-        Streaming is not retried: once words have reached the user, restarting would
-        repeat them. Failures before the first token surface to the caller immediately.
+        A transient failure BEFORE the first event (a busy provider, a timeout) is
+        retried like any call. Once anything has been yielded it is never retried:
+        restarting would repeat words the user has already seen.
         """
         provider = self._require_provider()
         model = self.model_for(task)
         self._check_budget(user_id)
         started = time.monotonic()
-        for event in provider.stream_chat(
-            model=model,
-            system=system,
-            messages=messages,
-            tools=tools,
-            max_output_tokens=max_output_tokens,
-            reasoning_effort=reasoning_effort,
-            user_ref=_user_ref(user_id),
-        ):
+
+        def open_stream() -> tuple[StreamEvent, Iterator[StreamEvent]]:
+            stream = iter(
+                provider.stream_chat(
+                    model=model,
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                    max_output_tokens=max_output_tokens,
+                    reasoning_effort=reasoning_effort,
+                    user_ref=_user_ref(user_id),
+                )
+            )
+            return next(stream), stream
+
+        first, rest = self._with_retries(open_stream)
+        for event in itertools.chain([first], rest):
             if isinstance(event, StreamDone):
                 self._record(
                     user_id,

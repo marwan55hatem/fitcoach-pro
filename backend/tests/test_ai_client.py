@@ -444,6 +444,37 @@ def test_stream_yields_deltas_then_done_and_records_usage_once(db: Session) -> N
     assert (row.tokens_in, row.tokens_out) == (200, 30)
 
 
+def test_stream_retries_a_busy_provider_before_the_first_word(db: Session) -> None:
+    user, fake = make_user(db), FakeProvider()
+    ai = make_client(db, fake)
+    fake.queue_error(AiRateLimitError())
+    fake.queue_stream(["ok"])
+    events = list(
+        ai.stream_chat(user_id=user.id, task=Task.MAIN, system="s", messages=ASK)
+    )
+    assert [e.text for e in events if isinstance(e, TextDelta)] == ["ok"]
+    assert len(fake.calls) == 2
+
+
+def test_stream_is_never_retried_once_words_were_sent(db: Session) -> None:
+    class CutOff(FakeProvider):
+        def stream_chat(self, **kwargs):
+            self.calls.append(kwargs)
+            yield TextDelta("Half a ")
+            raise AiRateLimitError()
+
+    user, provider = make_user(db), CutOff()
+    ai = make_client(db, provider)
+    seen: list[str] = []
+    with pytest.raises(AiRateLimitError):
+        for event in ai.stream_chat(
+            user_id=user.id, task=Task.MAIN, system="s", messages=ASK
+        ):
+            if isinstance(event, TextDelta):
+                seen.append(event.text)
+    assert seen == ["Half a "] and len(provider.calls) == 1
+
+
 def test_stream_checks_the_budget_before_starting(db: Session) -> None:
     user, fake = make_user(db), FakeProvider()
     ai = make_client(db, fake, ai_daily_token_budget=10)
