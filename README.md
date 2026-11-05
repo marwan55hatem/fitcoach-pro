@@ -145,6 +145,22 @@ Upload the scan with `POST /files?kind=inbody` (a photo or PDF), then `POST /inb
 - **Totals:** `/nutrition/day` counts only confirmed meals. An estimate counts its midpoint, and `kcal_min`..`kcal_max` shows the day's possible range.
 - **Manual and saved meals:** `POST /food/logs` logs a meal you type in. `POST /food/personal {"meal_log_id"}` keeps a confirmed meal as one of your own foods, and `GET /food/personal` lists them.
 
+### Adaptive rules (the coach's decisions)
+Pure, tested functions in `backend/app/rules`. They suggest changes, and nothing is applied until the user approves it (wired up in the weekly review step).
+- **Load** (`progression.py`): add 2.5 kg on compounds or 1 kg on isolations once every set reaches the top of the rep range. After two failed sessions at the same weight, drop 5 %, or 10 % when the reps fell well short. A lift with no progress over 3 sessions gets a suggested fix.
+- **Recovery** (`recovery.py`): a 0-100 readiness score from the latest check-in. A low score (under 40) removes one set per exercise for that session, never more. A deload week (same weights, half the sets) comes after 6 hard weeks, a week of low readiness, or 4+ hard weeks with readiness under 60.
+- **Calories** (`calories.py`): on a lean bulk, +250 kcal after two weeks under 0.15 kg/week, and −150 kcal above 0.7 kg/week or when InBody shows fat rising much faster than muscle. Cuts, maintenance and recomp have similar rules.
+- **Hard limits** (`limits.py`): `validate_recommendation` re-checks every proposal, from the rules or written by the AI:
+  - load changes of at most +2.5 kg, or −10 % (at least one plate step)
+  - at most 300 kcal per change and ±500 kcal in total, never below maintenance on a bulk
+  - protein between 1.6 and 2.2 g/kg
+  - no diet numbers when the health check withholds them
+- **Weekly review:** `review.py` bundles everything into typed recommendations.
+- **Tests:** table-driven tests cover every boundary, and Hypothesis property tests try random inputs to show nothing allowed ever breaks a limit. Coverage report:
+  ```powershell
+  .\.venv\Scripts\python.exe -m pytest --cov=app/rules --cov-report=term-missing
+  ```
+
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).
 

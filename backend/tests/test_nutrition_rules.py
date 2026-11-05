@@ -199,6 +199,22 @@ def test_day_totals_keep_the_estimate_range() -> None:
     assert (totals.kcal_min, totals.kcal_max) == (1000, 1150)
 
 
+def test_protein_and_fat_floors_win_when_calories_are_tight() -> None:
+    # A heavy, sedentary person cutting: protein and the fat floor fill the whole day,
+    # so carbs go to zero rather than fat going under its floor.
+    tight = NutritionInput(
+        weight_kg=150,
+        height_cm=150,
+        age=60,
+        sex=Sex.FEMALE,
+        activity=ActivityLevel.SEDENTARY,
+        goal=Goal.CUT,
+    )
+    t = daily_targets(tight)
+    assert t.fat_g == round(150 * 0.8)
+    assert t.carbs_g == 0
+
+
 def test_remaining_can_go_negative_when_over_target() -> None:
     t = daily_targets(ME)
     over = day_totals(

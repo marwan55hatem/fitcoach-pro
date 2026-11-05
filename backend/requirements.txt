@@ -19,6 +19,8 @@ slowapi
 pywebpush
 pytest
 pytest-asyncio
+pytest-cov
+hypothesis
 ruff
 email-validator
 openai
