@@ -156,6 +156,7 @@ def test_a_new_review_expires_the_old_undecided_items(
 ) -> None:
     fake.queue_structured(ReviewWriting(summary="Good.", reasons=["a", "b"]))
     first = run(client, user).json()
+    assert [r["kind"] for r in first["recommendations"]] == ["calorie_change", "deload"]
     approved = first["recommendations"][0]
     assert (
         client.post(

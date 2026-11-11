@@ -182,7 +182,9 @@ def run_weekly_review(db: Session, ai: AiClient, user_id: uuid.UUID) -> WeeklyRe
     except IntegrityError as exc:  # another run won the race
         db.rollback()
         raise AlreadyRanTodayError from exc
-    for proposal, reason in zip(proposals, text.reasons, strict=True):
+    for index, (proposal, reason) in enumerate(
+        zip(proposals, text.reasons, strict=True)
+    ):
         db.add(
             Recommendation(
                 user_id=user_id,
@@ -193,7 +195,8 @@ def run_weekly_review(db: Session, ai: AiClient, user_id: uuid.UUID) -> WeeklyRe
                 source="review",
                 review_id=review.id,
                 expires_at=approvals.expiry_from(now),
-                created_at=now,
+                # One microsecond apart, so they list in the rules' order.
+                created_at=now + dt.timedelta(microseconds=index),
             )
         )
     audit.record(
