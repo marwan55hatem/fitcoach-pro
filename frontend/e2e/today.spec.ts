@@ -15,7 +15,7 @@ test("log today's weight and the weekly check-in", async ({ page, request }) => 
 
   await expect(page.getByRole("heading", { name: "Hi Sam" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Next workout" })).toBeVisible();
-  await expect(page.getByText("No recommendations right now.")).toBeVisible();
+  await expect(page.getByText("Nothing waiting for you right now.")).toBeVisible();
 
   // Food: nothing logged yet, targets from the nutrition rules.
   const food = page.getByRole("region", { name: "Food today" });

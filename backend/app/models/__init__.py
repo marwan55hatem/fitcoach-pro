@@ -2,7 +2,13 @@
 
 from app.models.auth import RefreshToken
 from app.models.body import Checkin, InbodyScan, ProgressPhoto, WeightLog
-from app.models.coach import CoachNote, Conversation, Message, Recommendation
+from app.models.coach import (
+    CoachNote,
+    Conversation,
+    Message,
+    Recommendation,
+    WeeklyReview,
+)
 from app.models.files import StoredFile
 from app.models.notifications import NotificationChannel, NotificationLog, Reminder
 from app.models.nutrition import MealLog, MealOption, NutritionSettings, WaterLog
@@ -54,6 +60,7 @@ __all__ = [
     "StoredFile",
     "User",
     "WaterLog",
+    "WeeklyReview",
     "WeightLog",
     "WorkoutSession",
 ]

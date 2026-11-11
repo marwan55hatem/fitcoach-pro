@@ -8,6 +8,7 @@ export type Proposal = {
   kind: string;
   payload: Record<string, unknown>;
   reason: string | null;
+  status?: string; // set for items loaded from /recommendations
 };
 
 export type ChatEvent =

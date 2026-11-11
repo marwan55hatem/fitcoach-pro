@@ -62,6 +62,9 @@ class Program(OwnedBase, Base):
     recommendation_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("recommendations.id", ondelete="SET NULL")
     )
+    # An approved lighter week: sets are scaled down through deload_until (inclusive).
+    deload_until: Mapped[dt.date | None]
+    deload_set_factor: Mapped[Decimal | None] = mapped_column(sa.Numeric(3, 2))
 
     days: Mapped[list["ProgramDay"]] = relationship(
         back_populates="program",
@@ -80,6 +83,14 @@ class Program(OwnedBase, Base):
             postgresql_where=sa.text("status = 'active'"),
         ),
         sa.CheckConstraint("version >= 1", name="version_positive"),
+        sa.CheckConstraint(
+            "(deload_until IS NULL) = (deload_set_factor IS NULL)",
+            name="deload_complete",
+        ),
+        sa.CheckConstraint(
+            "deload_set_factor IS NULL OR deload_set_factor BETWEEN 0.4 AND 0.7",
+            name="deload_factor_range",
+        ),
     )
 
 
@@ -122,6 +133,8 @@ class ProgramExercise(OwnedBase, Base):
     rep_max: Mapped[int]
     rest_s: Mapped[int | None]
     notes: Mapped[str | None] = mapped_column(sa.Text)
+    # An approved load change: the next session's target, until it is lifted once.
+    target_weight_kg: Mapped[Decimal | None] = mapped_column(sa.Numeric(6, 2))
 
     day: Mapped[ProgramDay] = relationship(back_populates="exercises")
     exercise: Mapped[Exercise] = relationship()
@@ -131,6 +144,10 @@ class ProgramExercise(OwnedBase, Base):
         sa.CheckConstraint("sets BETWEEN 1 AND 20", name="sets_range"),
         sa.CheckConstraint("rep_min >= 1 AND rep_max >= rep_min", name="rep_range"),
         sa.CheckConstraint("rest_s IS NULL OR rest_s >= 0", name="rest_non_negative"),
+        sa.CheckConstraint(
+            "target_weight_kg IS NULL OR target_weight_kg BETWEEN 0 AND 500",
+            name="target_weight_range",
+        ),
     )
 
 

@@ -138,6 +138,7 @@ class RecommendationStatus(enum.StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    EXPIRED = "expired"  # superseded by a newer review, or left too long
 
 
 class ChannelType(enum.StrEnum):

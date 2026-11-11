@@ -389,3 +389,24 @@ export type PersonalRecord = {
   heaviest: BestSet | null;
   most_reps: number;
 };
+export type RecommendationStatus = "pending" | "approved" | "rejected" | "expired";
+export type Recommendation = {
+  id: string;
+  kind: string;
+  payload: Record<string, unknown>;
+  reason: string | null;
+  source: "coach" | "review";
+  status: RecommendationStatus;
+  created_at: string;
+  expires_at: string | null;
+  decided_at: string | null;
+  applied_at: string | null;
+  decision_note: string | null;
+};
+export type WeeklyReview = {
+  id: string;
+  run_on: string;
+  summary: string | null;
+  written_by: "ai" | "rules";
+  recommendations: Recommendation[];
+};

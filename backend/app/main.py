@@ -24,6 +24,7 @@ from app.api import (
     programs,
     progress,
     recommendations,
+    review,
     training,
 )
 from app.api.errors import PoolTimeoutError, ai_error_handler, db_busy_handler
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(progress.router)
     app.include_router(coach.router)
     app.include_router(recommendations.router)
+    app.include_router(review.router)
     return app
 
 

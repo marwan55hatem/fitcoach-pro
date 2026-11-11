@@ -86,6 +86,15 @@ class Recommendation(OwnedBase, Base):
         server_default=RecommendationStatus.PENDING.value,
     )
     applied_at: Mapped[dt.datetime | None]
+    source: Mapped[str] = mapped_column(
+        sa.String(16), server_default=sa.text("'coach'")
+    )  # coach | review
+    review_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weekly_reviews.id", ondelete="SET NULL"), index=True
+    )
+    expires_at: Mapped[dt.datetime | None]
+    decided_at: Mapped[dt.datetime | None]
+    decision_note: Mapped[str | None] = mapped_column(sa.Text)  # why it was rejected
 
     __table_args__ = (
         sa.Index("ix_recommendations_user_id_status", "user_id", "status"),
@@ -93,3 +102,15 @@ class Recommendation(OwnedBase, Base):
             "applied_at IS NULL OR status = 'approved'", name="applied_only_if_approved"
         ),
     )
+
+
+class WeeklyReview(OwnedBase, Base):
+    """One run of the weekly review: a short summary; its proposals are recommendations."""
+
+    __tablename__ = "weekly_reviews"
+
+    run_on: Mapped[dt.date]  # the user's local date; one run per day
+    summary: Mapped[str | None] = mapped_column(sa.Text)  # None: no AI text
+    written_by: Mapped[str] = mapped_column(sa.String(16))  # ai | rules
+
+    __table_args__ = (sa.UniqueConstraint("user_id", "run_on"),)

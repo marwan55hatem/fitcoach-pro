@@ -162,8 +162,18 @@ def _active_program_day(
     return day
 
 
+def deload_factor(program: Program, on: dt.date) -> float | None:
+    """The approved lighter-week set factor on that day, if one is scheduled."""
+    if program.deload_until is None or program.deload_set_factor is None:
+        return None
+    return float(program.deload_set_factor) if on <= program.deload_until else None
+
+
 def _planned_sets(
-    db: Session, user: User, exercises: list[ProgramExercise]
+    db: Session,
+    user: User,
+    exercises: list[ProgramExercise],
+    set_factor: float | None = None,
 ) -> list[SetLog]:
     history = logged_sets(db, user, exercise_ids=[pe.exercise_id for pe in exercises])
     by_exercise: dict[str, list[LoggedSet]] = defaultdict(list)
@@ -173,8 +183,14 @@ def _planned_sets(
     rows: list[SetLog] = []
     numbers: dict[uuid.UUID, int] = defaultdict(int)  # an exercise may appear twice
     for pe in exercises:
-        target = last_top_weight(by_exercise[str(pe.exercise_id)])
-        for _ in range(pe.sets):
+        # An approved load change wins until it is lifted once; then the history.
+        target = (
+            float(pe.target_weight_kg)
+            if pe.target_weight_kg is not None
+            else last_top_weight(by_exercise[str(pe.exercise_id)])
+        )
+        sets = pe.sets if set_factor is None else max(1, round(pe.sets * set_factor))
+        for _ in range(sets):
             numbers[pe.exercise_id] += 1
             rows.append(
                 SetLog(
@@ -214,7 +230,9 @@ def start_session(
         started_at=_now(),
     )
     if day is not None:
-        session.sets = _planned_sets(db, user, list(day.exercises))
+        session.sets = _planned_sets(
+            db, user, list(day.exercises), deload_factor(day.program, performed_on)
+        )
     try:
         with db.begin_nested():
             db.add(session)
@@ -334,6 +352,19 @@ def finish_session(db: Session, user: User, session: WorkoutSession) -> set[uuid
     if session.ended_at is not None:
         raise SessionFinishedError
     session.ended_at = max(_now(), session.started_at or _now())
+    lifted = {s.exercise_id for s in session.sets if s.done and not s.is_warmup}
+    if lifted:
+        # Approved targets are for the next time only: once lifted, history takes over.
+        db.execute(
+            sa.update(ProgramExercise)
+            .where(
+                ProgramExercise.user_id == user.id,
+                ProgramExercise.exercise_id.in_(lifted),
+                ProgramExercise.target_weight_kg.is_not(None),
+            )
+            .values(target_weight_kg=None)
+            .execution_options(synchronize_session=False)
+        )
     db.commit()
 
     done = [_logged(s, session.performed_on) for s in session.sets if s.done]

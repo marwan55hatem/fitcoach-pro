@@ -25,6 +25,7 @@ from app.rules.limits import Kind, validate_recommendation
 from app.rules.review import weekly_review
 from app.rules.training_stats import personal_best
 from app.services import (
+    approvals,
     body,
     coaching,
     inbody,
@@ -342,6 +343,8 @@ def _propose(
         explanation=args.reason,
         validation={"allowed": True, "reason": verdict.reason, "source": "coach"},
         status=RecommendationStatus.PENDING,
+        source="coach",
+        expires_at=approvals.expiry_from(dt.datetime.now(dt.UTC)),
     )
     db.add(rec)
     db.commit()

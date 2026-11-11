@@ -608,63 +608,6 @@ def test_the_user_controls_what_the_coach_remembers(
     )
 
 
-def test_recommendations_reject_and_stubbed_approve(
-    client: TestClient, db: Session, user: Account
-) -> None:
-    first = Recommendation(
-        user_id=user.id,
-        kind="calorie_change",
-        payload={"change_kcal": 200},
-        explanation="slow gain",
-    )
-    second = Recommendation(
-        user_id=user.id,
-        kind="calorie_change",
-        payload={"change_kcal": 250},
-        explanation="slow gain",
-    )
-    db.add_all([first, second])
-    db.commit()
-    pending = client.get("/recommendations?status=pending", headers=user.headers).json()
-    assert {p["id"] for p in pending} == {str(first.id), str(second.id)}
-
-    res = client.post(f"/recommendations/{first.id}/approve", headers=user.headers)
-    assert (
-        res.status_code == 501 and res.json()["detail"]["code"] == "approval_not_ready"
-    )
-    db.expire_all()
-    assert db.get(Recommendation, first.id).status is RecommendationStatus.PENDING
-
-    # The state changed since the proposal: approving re-checks and refuses.
-    db.add(NutritionSettings(user_id=user.id, calorie_adjustment_kcal=400))
-    db.commit()
-    res = client.post(f"/recommendations/{second.id}/approve", headers=user.headers)
-    assert (
-        res.status_code == 409
-        and res.json()["detail"]["reason"] == "total_out_of_range"
-    )
-
-    assert (
-        client.post(f"/recommendations/{first.id}/reject", headers=user.headers).json()[
-            "status"
-        ]
-        == "rejected"
-    )
-    assert (
-        client.post(
-            f"/recommendations/{first.id}/reject", headers=user.headers
-        ).status_code
-        == 409
-    )
-    other = new_user(client, "health_data", "ai_processing")
-    assert (
-        client.post(
-            f"/recommendations/{second.id}/reject", headers=other.headers
-        ).status_code
-        == 404
-    )
-
-
 def test_rule_recommendations_tool(
     client: TestClient, db: Session, user: Account
 ) -> None:

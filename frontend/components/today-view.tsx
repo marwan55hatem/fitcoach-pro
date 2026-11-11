@@ -1,7 +1,8 @@
 "use client";
 
-import { Gauge, MessageCircle } from "lucide-react";
+import { Gauge } from "lucide-react";
 
+import { ReviewSection } from "@/components/review/review-section";
 import { CheckinCard } from "@/components/today/checkin-card";
 import { FoodCard } from "@/components/today/food-card";
 import { NextWorkout } from "@/components/today/next-workout";
@@ -33,8 +34,7 @@ export function TodayView() {
         {user?.display_name ? fill(t.greeting, { name: user.display_name }) : t.title}
       </h1>
       <NextWorkout />
-      {/* Reserved for coach recommendations waiting for the user's approval. */}
-      <Upcoming icon={MessageCircle} title={t.coachTitle} body={t.coachEmpty} />
+      <ReviewSection />
       <div className="grid gap-5 md:grid-cols-2">
         <WeightCard />
         <FoodCard />

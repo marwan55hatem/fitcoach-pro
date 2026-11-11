@@ -36,12 +36,9 @@ test("chat with the coach: a reply, a safety answer and a suggestion card", asyn
   await expect(card.getByText(/Daily calories: \W*\+100\W* kcal/)).toBeVisible();
   await expect(page.getByText("I suggested 100 more calories a day.")).toBeVisible();
   await card.getByRole("button", { name: "Approve" }).click();
-  await expect(card.getByText("Applying approved changes arrives in the next update.")).toBeVisible();
-  const pending = await apiCall<{ status: string }[]>(request, user, "GET", "/recommendations?status=pending");
-  expect(pending).toHaveLength(1); // still waiting: nothing was applied
-
-  await card.getByRole("button", { name: "Reject" }).click();
-  await expect(card.getByText("Rejected")).toBeVisible();
+  await expect(card.getByText("Approved and applied")).toBeVisible();
+  const approved = await apiCall<{ status: string }[]>(request, user, "GET", "/recommendations?status=approved");
+  expect(approved).toHaveLength(1);
 
   // A reload keeps the conversation.
   await page.reload();

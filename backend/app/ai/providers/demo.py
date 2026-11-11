@@ -114,9 +114,18 @@ def _food() -> dict[str, Any]:
     }
 
 
+def _review() -> dict[str, Any]:
+    """Only a summary: no per-item reasons, so the rules' own words are shown."""
+    return {
+        "summary": "Steady work these weeks. Keep showing up and the results follow.",
+        "reasons": [],
+    }
+
+
 _ANSWERS: dict[str, Callable[[], dict[str, Any]]] = {
     "InbodyReading": _inbody,
     "AiFoodEstimate": _food,
+    "ReviewWriting": _review,
 }
 
 
