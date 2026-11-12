@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { BellRing, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -94,6 +96,15 @@ export function SettingsView() {
       </div>
 
       <Privacy />
+
+      <Link
+        href={to("/settings/notifications")}
+        className="flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card px-4 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <BellRing className="size-5 text-primary" aria-hidden />
+        <span className="flex-1 font-medium">{dict.notifications.open}</span>
+        <ChevronRight className="size-5 text-muted-foreground rtl:rotate-180" aria-hidden />
+      </Link>
 
       <div className="grid gap-2">
         <h2 className="text-xl font-semibold">{t.account}</h2>

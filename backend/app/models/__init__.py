@@ -10,7 +10,13 @@ from app.models.coach import (
     WeeklyReview,
 )
 from app.models.files import StoredFile
-from app.models.notifications import NotificationChannel, NotificationLog, Reminder
+from app.models.notifications import (
+    NotificationChannel,
+    NotificationLog,
+    NotificationSettings,
+    Reminder,
+    TelegramLinkCode,
+)
 from app.models.nutrition import MealLog, MealOption, NutritionSettings, WaterLog
 from app.models.system import AiUsage, AuditLog
 from app.models.training import (
@@ -47,6 +53,7 @@ __all__ = [
     "Message",
     "NotificationChannel",
     "NotificationLog",
+    "NotificationSettings",
     "NutritionSettings",
     "Profile",
     "Program",
@@ -58,6 +65,7 @@ __all__ = [
     "Reminder",
     "SetLog",
     "StoredFile",
+    "TelegramLinkCode",
     "User",
     "WaterLog",
     "WeeklyReview",

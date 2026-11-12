@@ -60,7 +60,14 @@ class Settings(BaseSettings):
     # Optional price overrides: {"model-id": [input, cached_input, output]} USD per 1M tokens.
     ai_price_overrides: dict[str, list[float]] = Field(default_factory=dict)
 
+    # Reminders (app/jobs/scheduler.py runs as its own process).
+    public_app_url: str = "http://localhost:3001"  # links in notifications
     telegram_bot_token: str = ""
+    # polling (development: the scheduler asks Telegram for new messages) or webhook
+    # (production: Telegram calls POST /notifications/telegram/webhook with the secret).
+    telegram_mode: Literal["polling", "webhook"] = "polling"
+    telegram_webhook_secret: str = ""
+    telegram_webhook_url: str = ""  # the public URL of that endpoint
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@example.com"
@@ -87,6 +94,15 @@ class Settings(BaseSettings):
         if self.ai_provider == "demo" and self.app_env != "development":
             raise ValueError(
                 "AI_PROVIDER=demo is only allowed with APP_ENV=development"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _webhook_needs_a_secret(self) -> "Settings":
+        if self.telegram_mode == "webhook" and len(self.telegram_webhook_secret) < 32:
+            raise ValueError(
+                "TELEGRAM_MODE=webhook needs a random TELEGRAM_WEBHOOK_SECRET of 32+ "
+                "characters"
             )
         return self
 

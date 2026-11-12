@@ -1,5 +1,5 @@
 // FitCoach PRO service worker: an offline shell only. Health data is never cached here.
-// Push handlers are added with reminders (Prompt 15).
+// Reminders arrive as web push messages: a short text and an app link, nothing more.
 const VERSION = "fitcoach-shell-v1";
 const SHELL = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png"];
 
@@ -45,4 +45,37 @@ self.addEventListener("fetch", (event) => {
       ),
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const url = typeof data.url === "string" ? data.url : "/";
+  event.waitUntil(
+    self.registration.showNotification(data.title || "FitCoach", {
+      body: data.body || "",
+      tag: data.tag || "fitcoach",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/", self.location.origin);
+  // Only ever open our own app.
+  const url = target.origin === self.location.origin ? target.href : self.location.origin;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => w.url.startsWith(self.location.origin));
+      if (open) return open.navigate(url).then((w) => (w || open).focus());
+      return self.clients.openWindow(url);
+    }),
+  );
 });

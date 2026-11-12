@@ -57,6 +57,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     queryFn: () => api<OnboardingStatus>("/onboarding/status"),
     enabled: ready,
   });
+  // A tap on a notification opens the app with ?n=<id>: tell the API (it stops reminders
+  // backing off) and drop the parameter from the address.
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("n");
+    if (!id) return;
+    params.delete("n");
+    const rest = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    if (/^[0-9a-f-]{36}$/i.test(id)) void api(`/notifications/${id}/opened`, { method: "POST" }).catch(() => undefined);
+  }, [ready]);
+
   // Only redirect on a fresh answer, never on a stale cached one being refetched.
   const complete = status.isFetching ? undefined : status.data?.onboarding_complete;
   useEffect(() => {

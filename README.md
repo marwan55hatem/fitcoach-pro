@@ -172,11 +172,23 @@ Pure, tested functions in `backend/app/rules`. They suggest changes, and nothing
 - **Prompt** (`app/ai/prompts/coach.md`): concise, data first, no diagnosis or medication advice, follows the health check, and replies in the user's language.
 - **Conversations:** saved with a rolling summary for long chats. A reply cut off midway is saved as partial. Photos: chat and food photos only, never body progress photos.
 - **Memory:** `GET/PUT/DELETE /coach/notes`, shown on the "What the coach remembers" page.
-- **Proposals:** `GET /recommendations`, `POST /recommendations/{id}/reject`, and `POST /recommendations/{id}/approve`. Approve re-checks the proposal; actually applying it arrives with the weekly review.
+- **Proposals:** `GET /recommendations`, `POST /recommendations/{id}/reject`, and `POST /recommendations/{id}/approve`. Approve re-checks the proposal against the current state and then applies it (a new program version, nutrition targets, or a deload).
 - **Evals:** scripted scenarios in `backend/tests/evals/scenarios.json`, run offline with no real AI:
   ```powershell
   .\.venv\Scripts\python.exe -m tests.evals.run
   ```
+
+### Reminders and the scheduler
+The scheduler is its own process (never inside the API workers). Run it next to the API:
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.jobs.scheduler
+```
+- Every minute it sends due reminders in each user's timezone. Each reminder slot goes out at most once, even with several schedulers (row locks plus a unique log row per slot).
+- The rules are in `app/rules/reminders.py`: quiet hours, a daily cap, skip a meal that's already logged or water once the target is met, a pause after several ignored reminders, and the notifications consent.
+- Sunday from 7 pm local time it runs the weekly review and sends "review ready" when there are suggestions. Every hour it cleans up old AI drafts.
+- **Web push:** make keys once with `.\.venv\Scripts\python.exe -m app.jobs.vapid` and put them in `backend/.env` (never in git). Push works in a production build (the service worker is not registered by `npm run dev`). **On iPhone, push only works when the app is added to the Home Screen and opened from there, over HTTPS.**
+- **Telegram:** create a bot with @BotFather and set `TELEGRAM_BOT_TOKEN`. In development the scheduler polls Telegram (`TELEGRAM_MODE=polling`). In production use `TELEGRAM_MODE=webhook` with a long random `TELEGRAM_WEBHOOK_SECRET` and the public `TELEGRAM_WEBHOOK_URL` of `POST /notifications/telegram/webhook`. Users link a chat with a one-time code from Settings > Reminders.
 
 ### Capacity and load testing
 The API sheds load instead of collapsing: at most `MAX_INFLIGHT_REQUESTS` (default 40, never above the DB pool capacity) requests run per worker; the rest get a fast `503` with `Retry-After`. Measured numbers, what 1 million users would take, and the scale-out plan are in [docs/CAPACITY.md](docs/CAPACITY.md).

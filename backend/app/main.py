@@ -19,6 +19,7 @@ from app.api import (
     health,
     inbody,
     me,
+    notifications,
     nutrition,
     onboarding,
     programs,
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(coach.router)
     app.include_router(recommendations.router)
     app.include_router(review.router)
+    app.include_router(notifications.router)
     return app
 
 

@@ -410,3 +410,36 @@ export type WeeklyReview = {
   written_by: "ai" | "rules";
   recommendations: Recommendation[];
 };
+export type ReminderType =
+  | "workout"
+  | "pre_workout_meal"
+  | "meals"
+  | "water"
+  | "weigh_in"
+  | "progress_photo"
+  | "checkin"
+  | "missed_workout"
+  | "review_ready";
+export type ChannelType = "webpush" | "telegram";
+export type ReminderSetting = {
+  type: ReminderType;
+  enabled: boolean;
+  channel: ChannelType;
+  schedule: { time?: string; days?: number[]; weekday?: number; times?: Record<string, string> | string[] };
+  snooze_until: string | null;
+};
+export type NotificationDevice = { id: string; type: ChannelType; label: string | null; created_at: string };
+export type NotificationPrefs = {
+  quiet_start: string | null;
+  quiet_end: string | null;
+  max_per_day: number;
+  show_details: boolean;
+};
+export type NotificationSettings = {
+  consent: boolean;
+  reminders: ReminderSetting[];
+  channels: NotificationDevice[];
+  prefs: NotificationPrefs;
+  webpush_public_key: string | null;
+  telegram_available: boolean;
+};

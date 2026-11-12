@@ -147,6 +147,7 @@ class ChannelType(enum.StrEnum):
 
 
 class NotificationStatus(enum.StrEnum):
+    SENDING = "sending"  # claimed by a scheduler tick, not confirmed yet
     SENT = "sent"
     FAILED = "failed"
     SKIPPED = "skipped"
